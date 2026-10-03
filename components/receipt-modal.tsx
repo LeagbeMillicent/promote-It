@@ -281,7 +281,7 @@ export function ReceiptModal({
             <div className="receipt-footer-notes">
               <p>{receipt.storeFooter || (typeof window !== "undefined" && localStorage.getItem("pos_receipt_footer")) || "Thank you for shopping with promoteIt Ventures!"}</p>
               <div className="receipt-system-tag">
-                Powered by Clutel
+                Powered by M Sphere
               </div>
             </div>
           </article>

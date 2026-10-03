@@ -237,11 +237,11 @@ export function buildEscPosBytes(receipt: ReceiptPrintPayload, options?: EscPosO
     addLine(`* ${receipt.saleNumber} *`);
   }
 
-  // 8. Footer Notes - Thank you message then powered by Clutel (BOLD for thermal clarity)
+  // 8. Footer Notes - Thank you message then powered by M Sphere (BOLD for thermal clarity)
   addBytes(CMD.ALIGN_CENTER);
   addBytes(CMD.BOLD_ON);
   addLine("Thank you for shopping with PromoteIt!");
-  addLine("Powered by Clutel");
+  addLine("Powered by M Sphere");
   addBytes(CMD.BOLD_OFF);
 
   // 9. Extra feed so auto-cutter cuts cleanly without clipping footer

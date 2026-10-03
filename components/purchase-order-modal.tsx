@@ -626,7 +626,7 @@ export function PurchaseOrderModal({
               <div className="receipt-footer-notes" style={{ marginTop: "10px" }}>
                 <p>Purchase Order Receiving Voucher</p>
                 <div className="receipt-system-tag">
-                  Powered by Clutel
+                  Powered by M Sphere
                 </div>
               </div>
             </article>
