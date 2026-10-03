@@ -20,6 +20,13 @@ export async function GET() {
 
       return {
         variantId: variant.id,
+        productId: variant.productId,
+        categoryId: variant.product.categoryId,
+        brandId: variant.product.brandId ?? undefined,
+        costPrice: Number(variant.costPrice),
+        sellingPrice: Number(variant.sellingPrice),
+        stock: variant.stock,
+        reorderLevel: variant.reorderLevel,
         id: `PRD-${variant.id.replaceAll("-", "").slice(-8).toUpperCase()}`,
         values: [
           variant.name,

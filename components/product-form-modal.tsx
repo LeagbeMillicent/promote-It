@@ -4,7 +4,19 @@ import { FormEvent, useEffect, useState } from "react";
 import { Package, X } from "lucide-react";
 
 type Option = { id: string; name: string };
-type ProductRow = { id: string; variantId?: string; values: string[]; status?: string; tone?: string };
+type ProductRow = {
+  id: string;
+  variantId?: string;
+  productId?: string;
+  categoryId?: string;
+  brandId?: string;
+  costPrice?: number | string;
+  sellingPrice?: number | string;
+  reorderLevel?: number | string;
+  values: string[];
+  status?: string;
+  tone?: string;
+};
 
 export function ProductFormModal({
   onClose,
@@ -22,15 +34,15 @@ export function ProductFormModal({
 
   const [form, setForm] = useState(() => ({
     name: editRow?.values[0] || "",
-    categoryId: "",
-    brandId: "",
+    categoryId: editRow?.categoryId || "",
+    brandId: editRow?.brandId || "",
     sku: editRow?.values[3] || "",
-    costPrice: "",
+    costPrice: editRow?.costPrice !== undefined ? String(editRow.costPrice) : "",
     sellingPrice: editRow?.values[4]
       ? editRow.values[4].replace("GHS ", "").replace(/,/g, "")
       : "",
     stock: editRow?.values[5] ? editRow.values[5].replace(" units", "") : "0",
-    reorderLevel: "5",
+    reorderLevel: editRow?.reorderLevel !== undefined ? String(editRow.reorderLevel) : "5",
   }));
 
   const [newBrand, setNewBrand] = useState("");
@@ -50,6 +62,28 @@ export function ProductFormModal({
               categoryId: current.categoryId || data.categories?.[0]?.id || "",
               brandId: current.brandId || data.brands?.[0]?.id || "",
             }));
+          } else {
+            setForm((current) => {
+              let categoryId = current.categoryId || editRow.categoryId || "";
+              if (!categoryId && editRow.values?.[1]) {
+                const matched = data.categories?.find(
+                  (c: Option) => c.name.toLowerCase() === editRow.values[1].toLowerCase()
+                );
+                if (matched) categoryId = matched.id;
+              }
+              let brandId = current.brandId || editRow.brandId || "";
+              if (!brandId && editRow.values?.[2] && editRow.values[2] !== "Unbranded") {
+                const matchedBrand = data.brands?.find(
+                  (b: Option) => b.name.toLowerCase() === editRow.values[2].toLowerCase()
+                );
+                if (matchedBrand) brandId = matchedBrand.id;
+              }
+              return {
+                ...current,
+                categoryId: categoryId || current.categoryId,
+                brandId: brandId || current.brandId,
+              };
+            });
           }
         }
       })

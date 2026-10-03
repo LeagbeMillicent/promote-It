@@ -4,7 +4,19 @@ import { useEffect, useState } from "react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { ProductFormModal } from "@/components/product-form-modal";
 
-type ProductRow = { id: string; variantId?: string; values: string[]; status?: string; tone?: string };
+type ProductRow = {
+  id: string;
+  variantId?: string;
+  productId?: string;
+  categoryId?: string;
+  brandId?: string;
+  costPrice?: number | string;
+  sellingPrice?: number | string;
+  reorderLevel?: number | string;
+  values: string[];
+  status?: string;
+  tone?: string;
+};
 
 export default function ProductsPage() {
   const [rows, setRows] = useState<ProductRow[]>([]);

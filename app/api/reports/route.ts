@@ -5,13 +5,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const [sales, expenses, products] = await Promise.all([
+    const [sales, expenses, categories, variants] = await Promise.all([
       db.sale.findMany({
         where: { status: "COMPLETED" },
         include: {
           items: {
             include: {
-              productVariant: true,
+              productVariant: {
+                include: {
+                  product: true,
+                },
+              },
             },
           },
           payments: true,
@@ -20,6 +24,16 @@ export async function GET() {
       }),
       db.expense.findMany({
         orderBy: { createdAt: "asc" },
+      }),
+      db.category.findMany({
+        orderBy: { name: "asc" },
+        include: {
+          products: {
+            include: {
+              variants: true,
+            },
+          },
+        },
       }),
       db.productVariant.findMany({
         include: { product: true },
@@ -47,6 +61,53 @@ export async function GET() {
       dailyMap[key] = { date: key, revenue: 0, expenses: 0, profit: 0 };
     }
 
+    // Initialize Category breakdown
+    const categoryStatsMap: Record<
+      string,
+      {
+        id: string;
+        name: string;
+        productCount: number;
+        variantCount: number;
+        totalItems: number;
+        totalAmount: number;
+        totalCostAmount: number;
+        unitsSold: number;
+        totalRevenue: number;
+      }
+    > = {};
+
+    for (const cat of categories) {
+      let totalItems = 0;
+      let totalAmount = 0;
+      let totalCostAmount = 0;
+      let variantCount = 0;
+
+      for (const prod of cat.products) {
+        variantCount += prod.variants.length;
+        for (const variant of prod.variants) {
+          const stock = Number(variant.stock || 0);
+          const sellPrice = Number(variant.sellingPrice || 0);
+          const costPrice = Number(variant.costPrice || 0);
+          totalItems += stock;
+          totalAmount += stock * sellPrice;
+          totalCostAmount += stock * costPrice;
+        }
+      }
+
+      categoryStatsMap[cat.id] = {
+        id: cat.id,
+        name: cat.name,
+        productCount: cat.products.length,
+        variantCount,
+        totalItems,
+        totalAmount,
+        totalCostAmount,
+        unitsSold: 0,
+        totalRevenue: 0,
+      };
+    }
+
     // Process sales
     for (const sale of sales) {
       const amount = Number(sale.total || 0);
@@ -62,13 +123,20 @@ export async function GET() {
         totalCost += itemCost;
 
         const prodId = item.productVariantId;
-        const prodName = item.productVariant.name;
-        const prodSku = item.productVariant.sku;
+        const prodName = item.productVariant?.name || "Product";
+        const prodSku = item.productVariant?.sku || "SKU-N/A";
         if (!productSalesMap[prodId]) {
           productSalesMap[prodId] = { name: prodName, sku: prodSku, unitsSold: 0, revenue: 0 };
         }
         productSalesMap[prodId].unitsSold += item.quantity;
         productSalesMap[prodId].revenue += Number(item.total || 0);
+
+        // Attribute sales to category
+        const catId = item.productVariant?.product?.categoryId;
+        if (catId && categoryStatsMap[catId]) {
+          categoryStatsMap[catId].unitsSold += item.quantity;
+          categoryStatsMap[catId].totalRevenue += Number(item.total || 0);
+        }
       }
 
       for (const pay of sale.payments) {
@@ -117,7 +185,20 @@ export async function GET() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    const lowStockCount = products.filter((p) => p.stock <= p.reorderLevel).length;
+    const lowStockCount = variants.filter((p) => p.stock <= p.reorderLevel).length;
+
+    const totalInventoryValue = Object.values(categoryStatsMap).reduce((acc, c) => acc + c.totalAmount, 0);
+    const totalInventoryItems = Object.values(categoryStatsMap).reduce((acc, c) => acc + c.totalItems, 0);
+
+    const categoryBreakdown = Object.values(categoryStatsMap)
+      .map((cat) => ({
+        ...cat,
+        totalAmount: Math.round(cat.totalAmount * 100) / 100,
+        totalCostAmount: Math.round(cat.totalCostAmount * 100) / 100,
+        totalRevenue: Math.round(cat.totalRevenue * 100) / 100,
+        valueShare: totalInventoryValue > 0 ? Math.round((cat.totalAmount / totalInventoryValue) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount);
 
     return NextResponse.json({
       summary: {
@@ -128,10 +209,14 @@ export async function GET() {
         transactionsCount,
         averageOrderValue,
         lowStockCount,
+        totalInventoryItems,
+        totalInventoryValue,
+        totalCategories: categories.length,
       },
       dailyTrends: Object.values(dailyMap),
       paymentBreakdown,
       topProducts,
+      categoryBreakdown,
     });
   } catch (error) {
     console.error("GET /api/reports error:", error);
