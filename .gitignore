@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local environment files and credentials
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Prisma local artifacts
+prisma/.cache/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
