@@ -20,6 +20,7 @@ import { AppShell } from "@/components/app-shell";
 import { SaleCreateModal } from "@/components/sale-create-modal";
 import { ReceiptData, ReceiptModal } from "@/components/receipt-modal";
 import { SaleDetailModal, SaleDetailData } from "@/components/sale-detail-modal";
+import { ConfirmModal } from "@/components/confirm-modal";
 import {
   getCurrentWeekDays,
   getTodayDateString,
@@ -211,16 +212,44 @@ export default function SalesPage() {
     return Array.from(monthsSet).sort().reverse();
   }, [rows]);
 
-  async function toggleSaleStatus(row: SaleRow) {
+  const [statusTarget, setStatusTarget] = useState<{
+    row: SaleRow;
+    nextStatus: string;
+    isCurrentlyPaid: boolean;
+  } | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  function toggleSaleStatus(row: SaleRow) {
     const isCurrentlyPaid = (row.status || "Paid").toLowerCase() === "paid";
     const nextStatus = isCurrentlyPaid ? "Not Paid" : "Paid";
-    if (!confirm(`Mark sale ${row.id} as ${nextStatus}?`)) return;
-    await fetch(`/api/sales/${row.saleId || row.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: isCurrentlyPaid ? "CANCELLED" : "COMPLETED" }),
-    });
-    loadSales();
+    setStatusError(null);
+    setStatusTarget({ row, nextStatus, isCurrentlyPaid });
+  }
+
+  async function confirmToggleStatus() {
+    if (!statusTarget) return;
+    setIsUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      const res = await fetch(`/api/sales/${statusTarget.row.saleId || statusTarget.row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusTarget.isCurrentlyPaid ? "CANCELLED" : "COMPLETED" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatusError(data.error || "Failed to update sale status");
+        setIsUpdatingStatus(false);
+        return;
+      }
+      setIsUpdatingStatus(false);
+      setStatusTarget(null);
+      loadSales();
+    } catch {
+      setStatusError("Network error while updating sale status");
+      setIsUpdatingStatus(false);
+    }
   }
 
   function openCreate() {
@@ -833,6 +862,41 @@ export default function SalesPage() {
           onClose={() => setViewingReceipt(null)}
         />
       )}
+
+      {/* Sale Status Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!statusTarget}
+        title="Update Sale Status"
+        subtitle="Billing & Ledger Reconciliation"
+        variant={statusTarget?.isCurrentlyPaid ? "warning" : "success"}
+        confirmLabel={statusTarget?.isCurrentlyPaid ? "Mark as Not Paid" : "Mark as Paid"}
+        description={
+          <span>
+            Change payment status for transaction <strong>{statusTarget?.row.id}</strong> to{" "}
+            <strong>{statusTarget?.nextStatus}</strong>?
+          </span>
+        }
+        itemDetails={
+          statusTarget
+            ? [
+                { label: "Sale Number", value: statusTarget.row.id },
+                { label: "Customer", value: statusTarget.row.customerName || (Array.isArray(statusTarget.row.values) ? statusTarget.row.values[0] : "Walk-in") },
+                { label: "Total Amount", value: Array.isArray(statusTarget.row.values) ? statusTarget.row.values[3] : `GHS ${Number(statusTarget.row.total).toFixed(2)}` },
+                { label: "Current Status", value: statusTarget.row.status || "Paid" },
+                { label: "New Status", value: statusTarget.nextStatus },
+              ]
+            : []
+        }
+        isLoading={isUpdatingStatus}
+        error={statusError}
+        onConfirm={confirmToggleStatus}
+        onClose={() => {
+          if (!isUpdatingStatus) {
+            setStatusTarget(null);
+            setStatusError(null);
+          }
+        }}
+      />
     </AppShell>
   );
 }

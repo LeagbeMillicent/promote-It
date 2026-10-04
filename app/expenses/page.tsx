@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { ExpenseFormModal } from "@/components/expense-form-modal";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 type ExpenseRow = { id: string; expenseId?: string; values: string[]; status?: string; tone?: string };
 
@@ -10,6 +11,9 @@ export default function ExpensesPage() {
   const [rows, setRows] = useState<ExpenseRow[]>([]);
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<ExpenseRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function loadExpenses() {
     fetch("/api/expenses")
@@ -22,11 +26,33 @@ export default function ExpensesPage() {
     loadExpenses();
   }, []);
 
-  async function deleteExpense(row: Row) {
+  function deleteExpense(row: Row) {
     const eRow = row as ExpenseRow;
-    if (!confirm(`Delete expense ${eRow.id}?`)) return;
-    await fetch(`/api/expenses/${eRow.expenseId || eRow.id}`, { method: "DELETE" });
-    loadExpenses();
+    setDeleteError(null);
+    setDeleteTarget(eRow);
+  }
+
+  async function confirmDeleteExpense() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/expenses/${deleteTarget.expenseId || deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error || "Expense could not be deleted");
+        setIsDeleting(false);
+        return;
+      }
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      loadExpenses();
+    } catch {
+      setDeleteError("Network error while deleting expense");
+      setIsDeleting(false);
+    }
   }
 
   function openCreate() {
@@ -67,6 +93,39 @@ export default function ExpensesPage() {
           onSaved={loadExpenses}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete Expense"
+        subtitle="Financial Records"
+        description={
+          <span>
+            Are you sure you want to delete expense record <strong>{deleteTarget?.id}</strong>?
+          </span>
+        }
+        itemDetails={
+          deleteTarget
+            ? [
+                { label: "Expense ID", value: deleteTarget.id },
+                { label: "Category", value: deleteTarget.values[0] || "—" },
+                { label: "Description", value: deleteTarget.values[1] || "—" },
+                { label: "Payment Method", value: deleteTarget.values[2] || "—" },
+                { label: "Amount", value: deleteTarget.values[3] || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Delete Expense"
+        variant="danger"
+        isLoading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDeleteExpense}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      />
     </>
   );
 }

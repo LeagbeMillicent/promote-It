@@ -711,8 +711,34 @@ button {
   transition: all 0.15s ease;
 }
 
-.danger-button:hover {
+.danger-button:hover:not(:disabled) {
   background: var(--status-red);
+  color: #ffffff;
+}
+
+.danger-button:disabled,
+.warning-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.warning-button {
+  background: var(--status-orange-bg);
+  color: var(--status-orange);
+  border: 1px solid var(--status-orange-border);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.warning-button:hover:not(:disabled) {
+  background: var(--status-orange);
   color: #ffffff;
 }
 
@@ -1625,6 +1651,130 @@ tbody td {
   font-size: 13px;
   color: var(--ink-secondary);
 }
+
+/* =========================================================
+   Confirm / Action Prompt Modal
+   ========================================================= */
+.confirm-modal-backdrop {
+  z-index: 150;
+}
+
+.confirm-modal-card {
+  max-width: 460px;
+}
+
+.confirm-modal-header {
+  padding: 18px 22px;
+}
+
+.confirm-modal-heading h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.confirm-modal-heading p {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 2px 0 0;
+}
+
+.confirm-icon-danger {
+  background: var(--status-red-bg);
+  color: var(--status-red);
+}
+
+.confirm-icon-warning {
+  background: var(--status-orange-bg);
+  color: var(--status-orange);
+}
+
+.confirm-icon-success {
+  background: var(--status-green-bg);
+  color: var(--status-green);
+}
+
+.confirm-icon-primary {
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+}
+
+.confirm-modal-body {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.confirm-modal-description {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}
+
+.confirm-modal-description strong {
+  color: var(--ink-primary);
+}
+
+.confirm-details-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirm-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.confirm-details-label {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.confirm-details-value {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.confirm-error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  background: var(--status-red-bg);
+  border: 1px solid var(--status-red-border);
+  color: var(--status-red);
+}
+
+.confirm-loading-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spin-icon {
+  animation: modalSpin 1s linear infinite;
+}
+
+@keyframes modalSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 /* =========================================================
    Auth Pages (Login & Register)

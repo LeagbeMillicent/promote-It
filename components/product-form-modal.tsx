@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Package, X } from "lucide-react";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 type Option = { id: string; name: string };
 type ProductRow = {
@@ -165,12 +166,56 @@ export function ProductFormModal({
     onClose();
   }
 
-  async function deleteProduct() {
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleConfirmDelete() {
     if (!editRow) return;
-    if (!confirm(`Delete ${editRow.values[0] || "this product"}?`)) return;
-    await fetch(`/api/products/${editRow.variantId || editRow.id}`, { method: "DELETE" });
-    onSaved();
-    onClose();
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/products/${editRow.variantId || editRow.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error || "Product could not be deleted");
+        setDeleting(false);
+        return;
+      }
+      setDeleting(false);
+      setConfirmDeleteOpen(false);
+      onSaved();
+      onClose();
+    } catch {
+      setDeleteError("Network error while deleting product");
+      setDeleting(false);
+    }
+  }
+
+  async function handleDeactivateInstead() {
+    if (!editRow) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/products/${editRow.variantId || editRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: false }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        setDeleteError(data.error || "Could not deactivate product");
+        setDeleting(false);
+        return;
+      }
+      setDeleting(false);
+      setConfirmDeleteOpen(false);
+      onSaved();
+      onClose();
+    } catch {
+      setDeleteError("Network error while deactivating product");
+      setDeleting(false);
+    }
   }
 
   return (
@@ -327,7 +372,14 @@ export function ProductFormModal({
           </div>
           <div className="modal-footer">
             {editRow && (
-              <button type="button" className="danger-button" onClick={deleteProduct}>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setConfirmDeleteOpen(true);
+                }}
+              >
                 Delete
               </button>
             )}
@@ -341,6 +393,47 @@ export function ProductFormModal({
           </div>
         </form>
       </section>
+
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        title="Delete Product"
+        subtitle="Catalog Management"
+        description={
+          <span>
+            Are you sure you want to permanently delete{" "}
+            <strong>{editRow?.values[0] || form.name || "this product"}</strong>? This action cannot be undone.
+          </span>
+        }
+        itemDetails={
+          editRow
+            ? [
+                { label: "Product Name", value: editRow.values[0] || form.name },
+                { label: "SKU", value: editRow.values[3] || form.sku || "—" },
+                { label: "Selling Price", value: editRow.values[4] || form.sellingPrice || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Delete Product"
+        variant="danger"
+        isLoading={deleting}
+        error={deleteError}
+        onConfirm={handleConfirmDelete}
+        onClose={() => {
+          if (!deleting) {
+            setConfirmDeleteOpen(false);
+            setDeleteError(null);
+          }
+        }}
+        secondaryAction={
+          deleteError
+            ? {
+                label: "Deactivate Instead",
+                variant: "warning",
+                onClick: handleDeactivateInstead,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 type SupplierRow = {
   id: string;
@@ -167,14 +168,38 @@ export default function SuppliersPage() {
     loadSuppliers();
   }
 
-  async function deleteSupplier() {
+  const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+
+  function deleteSupplier() {
     if (!selectedSupplier) return;
-    if (!confirm(`Deactivate supplier ${selectedSupplier.name}?`)) return;
-    await fetch(`/api/suppliers?id=${encodeURIComponent(selectedSupplier.id)}`, {
-      method: "DELETE",
-    });
-    setModalMode(null);
-    loadSuppliers();
+    setDeactivateError(null);
+    setConfirmDeactivateOpen(true);
+  }
+
+  async function confirmDeactivateSupplier() {
+    if (!selectedSupplier) return;
+    setIsDeactivating(true);
+    setDeactivateError(null);
+    try {
+      const res = await fetch(`/api/suppliers?id=${encodeURIComponent(selectedSupplier.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeactivateError(data.error || "Supplier could not be deactivated");
+        setIsDeactivating(false);
+        return;
+      }
+      setIsDeactivating(false);
+      setConfirmDeactivateOpen(false);
+      setModalMode(null);
+      loadSuppliers();
+    } catch {
+      setDeactivateError("Network error while deactivating supplier");
+      setIsDeactivating(false);
+    }
   }
 
   // Summary rollups
@@ -531,6 +556,38 @@ export default function SuppliersPage() {
           </section>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmDeactivateOpen}
+        title="Deactivate Supplier"
+        subtitle="Procurement Network"
+        description={
+          <span>
+            Are you sure you want to deactivate supplier <strong>{selectedSupplier?.name}</strong>?
+          </span>
+        }
+        itemDetails={
+          selectedSupplier
+            ? [
+                { label: "Supplier Name", value: selectedSupplier.name },
+                { label: "Contact Person", value: selectedSupplier.contact || "—" },
+                { label: "Phone Number", value: selectedSupplier.phone || "—" },
+                { label: "Location", value: selectedSupplier.location || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Deactivate Supplier"
+        variant="warning"
+        isLoading={isDeactivating}
+        error={deactivateError}
+        onConfirm={confirmDeactivateSupplier}
+        onClose={() => {
+          if (!isDeactivating) {
+            setConfirmDeactivateOpen(false);
+            setDeactivateError(null);
+          }
+        }}
+      />
     </AppShell>
   );
 }

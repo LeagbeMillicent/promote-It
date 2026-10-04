@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { UserFormModal } from "@/components/user-form-modal";
 import { ResetPasswordModal } from "@/components/reset-password-modal";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 type UserRow = { id: string; userId?: string; values: string[]; status?: string; tone?: string };
 
@@ -12,6 +13,9 @@ export default function TeamPage() {
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<UserRow | null>(null);
   const [resetRow, setResetRow] = useState<UserRow | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<UserRow | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
 
   function loadUsers() {
     fetch("/api/users")
@@ -24,10 +28,32 @@ export default function TeamPage() {
     loadUsers();
   }, []);
 
-  async function deactivateUser(row: Row) {
-    if (!confirm(`Deactivate ${row.values[0] || "this user"}?`)) return;
-    await fetch(`/api/users/${row.userId || row.id}`, { method: "DELETE" });
-    loadUsers();
+  function deactivateUser(row: Row) {
+    setDeactivateError(null);
+    setDeactivateTarget(row as UserRow);
+  }
+
+  async function confirmDeactivateUser() {
+    if (!deactivateTarget) return;
+    setIsDeactivating(true);
+    setDeactivateError(null);
+    try {
+      const response = await fetch(`/api/users/${deactivateTarget.userId || deactivateTarget.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeactivateError(data.error || "User could not be deactivated");
+        setIsDeactivating(false);
+        return;
+      }
+      setIsDeactivating(false);
+      setDeactivateTarget(null);
+      loadUsers();
+    } catch {
+      setDeactivateError("Network error while deactivating user");
+      setIsDeactivating(false);
+    }
   }
 
   function openCreate() {
@@ -78,6 +104,39 @@ export default function TeamPage() {
           onSaved={loadUsers}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!deactivateTarget}
+        title="Deactivate Staff Member"
+        subtitle="Access & Permissions"
+        description={
+          <span>
+            Are you sure you want to deactivate account access for{" "}
+            <strong>{deactivateTarget?.values[0] || "this staff member"}</strong>? They will no longer be able to log in.
+          </span>
+        }
+        itemDetails={
+          deactivateTarget
+            ? [
+                { label: "Staff Member", value: deactivateTarget.values[0] || "—" },
+                { label: "Email Address", value: deactivateTarget.values[1] || "—" },
+                { label: "Role", value: deactivateTarget.values[2] || "—" },
+                { label: "Current Status", value: deactivateTarget.status || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Deactivate Account"
+        variant="warning"
+        isLoading={isDeactivating}
+        error={deactivateError}
+        onConfirm={confirmDeactivateUser}
+        onClose={() => {
+          if (!isDeactivating) {
+            setDeactivateTarget(null);
+            setDeactivateError(null);
+          }
+        }}
+      />
     </>
   );
 }

@@ -15,6 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       reorderLevel?: number;
       categoryId?: string;
       brandId?: string;
+      active?: boolean;
     };
 
     const existingVariant = await db.productVariant.findFirst({
@@ -30,11 +31,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    if (body.categoryId || body.brandId !== undefined || body.name !== undefined) {
+    if (body.categoryId || body.brandId !== undefined || body.name !== undefined || body.active !== undefined) {
       const productUpdate: Record<string, unknown> = { updatedAt: new Date() };
       if (body.name !== undefined) productUpdate.name = body.name.trim();
       if (body.categoryId) productUpdate.categoryId = body.categoryId;
       if (body.brandId !== undefined) productUpdate.brandId = body.brandId || null;
+      if (body.active !== undefined) productUpdate.active = body.active;
       await db.product.update({
         where: { id: existingVariant.productId },
         data: productUpdate,
@@ -102,7 +104,16 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     await db.productVariant.delete({ where: { id: existing.id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Product could not be deleted" }, { status: 400 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    const isConstraint = msg.includes("foreign key") || msg.includes("Foreign key") || msg.includes("violates") || msg.includes("restrict");
+    return NextResponse.json(
+      {
+        error: isConstraint
+          ? "This product is referenced by sales, purchases, or inventory movements and cannot be deleted. Deactivate it instead."
+          : "Product could not be deleted.",
+      },
+      { status: 400 }
+    );
   }
 }

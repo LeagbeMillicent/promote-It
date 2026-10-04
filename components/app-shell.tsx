@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ConfirmModal } from "@/components/confirm-modal";
 import {
   BarChart3,
   Bell,
@@ -66,9 +67,16 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
     setProfileOpen(false);
   }
 
-  async function handleLogout() {
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  function handleLogout() {
     closeAllDropdowns();
-    if (!confirm("Log out of promoteIt?")) return;
+    setLogoutModalOpen(true);
+  }
+
+  async function confirmLogout() {
+    setIsLoggingOut(true);
     try {
       await fetch("/api/logout", { method: "POST" });
     } catch {}
@@ -276,6 +284,22 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
           aria-label="Close navigation"
         />
       )}
+
+      <ConfirmModal
+        isOpen={logoutModalOpen}
+        title="Sign Out of promoteIt"
+        subtitle="Active Session"
+        icon={<LogOut size={20} />}
+        variant="danger"
+        confirmLabel="Sign Out"
+        cancelLabel="Stay Signed In"
+        description="Are you sure you want to end your current session? Make sure you have completed any in-progress register transactions."
+        isLoading={isLoggingOut}
+        onConfirm={confirmLogout}
+        onClose={() => {
+          if (!isLoggingOut) setLogoutModalOpen(false);
+        }}
+      />
     </div>
   );
 }

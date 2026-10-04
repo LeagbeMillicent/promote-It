@@ -9,12 +9,21 @@ import {
   PurchaseOrderModal,
   downloadPurchaseOrderDocument,
 } from "@/components/purchase-order-modal";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 export default function PurchasesPage() {
   const [rows, setRows] = useState<PurchaseRow[]>([]);
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<PurchaseRow | null>(null);
   const [activePO, setActivePO] = useState<{ po: PurchaseOrderData; autoPrint: boolean } | null>(null);
+
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseRow | null>(null);
+  const [isReceiving, setIsReceiving] = useState(false);
+  const [receiveError, setReceiveError] = useState<string | null>(null);
+
+  const [cancelTarget, setCancelTarget] = useState<PurchaseRow | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   function loadPurchases() {
     fetch("/api/purchases")
@@ -27,28 +36,62 @@ export default function PurchasesPage() {
     loadPurchases();
   }, []);
 
-  async function receive(row: PurchaseRow) {
-    if (row.status?.toLowerCase() !== "draft") {
-      alert("Only draft purchases can be received.");
-      return;
-    }
-    const confirmed = confirm(
-      `Receive purchase ${row.id} and add ${row.items?.length || 0} product items into inventory?`
-    );
-    if (!confirmed) return;
-
-    await fetch(`/api/purchases/${row.purchaseId || row.id}/receive`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    loadPurchases();
+  function receive(row: PurchaseRow) {
+    setReceiveError(null);
+    setReceiveTarget(row);
   }
 
-  async function cancelPurchase(row: PurchaseRow) {
-    if (!confirm(`Cancel purchase ${row.id}?`)) return;
-    await fetch(`/api/purchases/${row.purchaseId || row.id}`, { method: "DELETE" });
-    loadPurchases();
+  async function confirmReceive() {
+    if (!receiveTarget) return;
+    setIsReceiving(true);
+    setReceiveError(null);
+    try {
+      const res = await fetch(`/api/purchases/${receiveTarget.purchaseId || receiveTarget.id}/receive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReceiveError(data.error || "Failed to receive purchase order");
+        setIsReceiving(false);
+        return;
+      }
+      setIsReceiving(false);
+      setReceiveTarget(null);
+      loadPurchases();
+    } catch {
+      setReceiveError("Network error while receiving purchase order");
+      setIsReceiving(false);
+    }
+  }
+
+  function cancelPurchase(row: PurchaseRow) {
+    setCancelError(null);
+    setCancelTarget(row);
+  }
+
+  async function confirmCancelPurchase() {
+    if (!cancelTarget) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/purchases/${cancelTarget.purchaseId || cancelTarget.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelError(data.error || "Failed to cancel purchase order");
+        setIsCancelling(false);
+        return;
+      }
+      setIsCancelling(false);
+      setCancelTarget(null);
+      loadPurchases();
+    } catch {
+      setCancelError("Network error while cancelling purchase order");
+      setIsCancelling(false);
+    }
   }
 
   function getPOData(row: PurchaseRow): PurchaseOrderData {
@@ -212,6 +255,73 @@ export default function PurchasesPage() {
           onClose={() => setActivePO(null)}
         />
       )}
+
+      {/* Receive Purchase Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!receiveTarget}
+        title="Receive Purchase Order"
+        subtitle="Inventory Restocking"
+        icon={<Truck size={20} />}
+        variant="success"
+        description={
+          <span>
+            Receive purchase order <strong>{receiveTarget?.id}</strong>? All purchased items will be immediately added into active store inventory.
+          </span>
+        }
+        itemDetails={
+          receiveTarget
+            ? [
+                { label: "Purchase Number", value: receiveTarget.id },
+                { label: "Supplier", value: receiveTarget.supplierName || (Array.isArray(receiveTarget.values) ? receiveTarget.values[0] : "—") },
+                { label: "Line Items", value: `${receiveTarget.items?.length || 0} product items` },
+                { label: "Total Amount", value: Array.isArray(receiveTarget.values) ? receiveTarget.values[2] : "—" },
+              ]
+            : []
+        }
+        confirmLabel="Receive into Inventory"
+        isLoading={isReceiving}
+        error={receiveError}
+        onConfirm={confirmReceive}
+        onClose={() => {
+          if (!isReceiving) {
+            setReceiveTarget(null);
+            setReceiveError(null);
+          }
+        }}
+      />
+
+      {/* Cancel Purchase Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!cancelTarget}
+        title="Cancel Purchase Order"
+        subtitle="Procurement"
+        variant="danger"
+        description={
+          <span>
+            Are you sure you want to cancel purchase order <strong>{cancelTarget?.id}</strong>?
+          </span>
+        }
+        itemDetails={
+          cancelTarget
+            ? [
+                { label: "Purchase Number", value: cancelTarget.id },
+                { label: "Supplier", value: cancelTarget.supplierName || (Array.isArray(cancelTarget.values) ? cancelTarget.values[0] : "—") },
+                { label: "Order Total", value: Array.isArray(cancelTarget.values) ? cancelTarget.values[2] : "—" },
+                { label: "Current Status", value: cancelTarget.status || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Cancel Purchase Order"
+        isLoading={isCancelling}
+        error={cancelError}
+        onConfirm={confirmCancelPurchase}
+        onClose={() => {
+          if (!isCancelling) {
+            setCancelTarget(null);
+            setCancelError(null);
+          }
+        }}
+      />
     </>
   );
 }

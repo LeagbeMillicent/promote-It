@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { Contact2, Trash2, X } from "lucide-react";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 type CustomerItem = {
   id: string;
@@ -21,6 +22,9 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -66,14 +70,34 @@ export default function CustomersPage() {
     setModalOpen(true);
   }
 
-  async function deleteCustomer(row: Row) {
+  function deleteCustomer(row: Row) {
     const cust = customers.find((c) => c.id === row.id || c.customerId === row.id);
     if (!cust) return;
-    if (!confirm(`Delete customer ${cust.name}?`)) return;
-    await fetch(`/api/customers?id=${encodeURIComponent(cust.customerId)}`, {
-      method: "DELETE",
-    });
-    loadCustomers();
+    setDeleteError(null);
+    setDeleteTarget(cust);
+  }
+
+  async function confirmDeleteCustomer() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/customers?id=${encodeURIComponent(deleteTarget.customerId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteError(data.error || "Customer could not be deleted");
+        setIsDeleting(false);
+        return;
+      }
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      loadCustomers();
+    } catch {
+      setDeleteError("Network error while deleting customer");
+      setIsDeleting(false);
+    }
   }
 
   async function submitCustomer(e: React.FormEvent) {
@@ -227,6 +251,38 @@ export default function CustomersPage() {
           </section>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete Customer"
+        subtitle="Customer Directory"
+        description={
+          <span>
+            Are you sure you want to delete customer <strong>{deleteTarget?.name}</strong>?
+          </span>
+        }
+        itemDetails={
+          deleteTarget
+            ? [
+                { label: "Customer Name", value: deleteTarget.name },
+                { label: "Phone Number", value: deleteTarget.phone || "—" },
+                { label: "Email Address", value: deleteTarget.email || "—" },
+                { label: "Location / Address", value: deleteTarget.address || "—" },
+              ]
+            : []
+        }
+        confirmLabel="Delete Customer"
+        variant="danger"
+        isLoading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDeleteCustomer}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      />
     </>
   );
 }
