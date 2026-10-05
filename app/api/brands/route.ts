@@ -4,12 +4,36 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  let name = "";
   try {
-    const body = await request.json() as { name?: string };
-    if (!body.name?.trim()) return NextResponse.json({ error: "Brand name is required" }, { status: 400 });
-    const brand = await db.brand.create({ data: { name: body.name.trim() } });
+    const body = (await request.json()) as { name?: string };
+    name = body.name?.trim() || "";
+    if (!name) return NextResponse.json({ error: "Brand name is required" }, { status: 400 });
+
+    const existing = await db.brand.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
+    });
+    if (existing) {
+      return NextResponse.json({ id: existing.id, name: existing.name }, { status: 200 });
+    }
+
+    const brand = await db.brand.create({ data: { name } });
     return NextResponse.json({ id: brand.id, name: brand.name }, { status: 201 });
   } catch (error) {
+    if (
+      (error as { code?: string })?.code === "P2002" ||
+      (error instanceof Error && error.message.includes("Brand_name_key"))
+    ) {
+      if (name) {
+        const existing = await db.brand.findFirst({
+          where: { name: { equals: name, mode: "insensitive" } },
+        });
+        if (existing) {
+          return NextResponse.json({ id: existing.id, name: existing.name }, { status: 200 });
+        }
+      }
+      return NextResponse.json({ error: "A brand with this name already exists" }, { status: 409 });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Brand could not be created" }, { status: 400 });
   }
 }

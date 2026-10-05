@@ -59,5 +59,11 @@ export async function POST(request: Request) {
     if (!body.name?.trim() || body.costPrice === undefined || body.sellingPrice === undefined) return NextResponse.json({ error: "Product name and prices are required" }, { status: 400 });
     const product = await createProduct({ name: body.name.trim(), categoryId: category.id, brandId: body.brandId || undefined, locationId: location.id, variants: [{ name: body.name.trim(), sku: body.sku?.trim() || `SKU-${Date.now()}`, costPrice: body.costPrice, sellingPrice: body.sellingPrice, stock: body.stock ?? 0, reorderLevel: body.reorderLevel ?? 5, unit: "piece" }] }, user.id);
     return NextResponse.json(product, { status: 201 });
-  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Product could not be created" }, { status: 400 }); }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("Unique constraint") || msg.includes("P2002") || msg.includes("sku")) {
+      return NextResponse.json({ error: "A product with this SKU already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Product could not be created" }, { status: 400 });
+  }
 }

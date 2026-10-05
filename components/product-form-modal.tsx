@@ -98,6 +98,15 @@ export function ProductFormModal({
   async function addCategory() {
     const trimmed = newCategory.trim();
     if (!trimmed) return;
+    const existingInLocal = catalog.categories.find(
+      (c) => c.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existingInLocal) {
+      setForm((current) => ({ ...current, categoryId: existingInLocal.id }));
+      setNewCategory("");
+      setError("");
+      return;
+    }
     const response = await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,10 +117,14 @@ export function ProductFormModal({
       setError(data.error ?? "Category could not be created");
       return;
     }
-    setCatalog((current) => ({
-      ...current,
-      categories: [...current.categories, { id: data.id, name: data.name }],
-    }));
+    setError("");
+    setCatalog((current) => {
+      const exists = current.categories.some((c) => c.id === data.id);
+      return {
+        ...current,
+        categories: exists ? current.categories : [...current.categories, { id: data.id, name: data.name }],
+      };
+    });
     setForm((current) => ({ ...current, categoryId: data.id }));
     setNewCategory("");
   }
@@ -119,6 +132,15 @@ export function ProductFormModal({
   async function addBrand() {
     const trimmed = newBrand.trim();
     if (!trimmed) return;
+    const existingInLocal = catalog.brands.find(
+      (b) => b.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existingInLocal) {
+      setForm((current) => ({ ...current, brandId: existingInLocal.id }));
+      setNewBrand("");
+      setError("");
+      return;
+    }
     const response = await fetch("/api/brands", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -129,10 +151,14 @@ export function ProductFormModal({
       setError(data.error ?? "Brand could not be created");
       return;
     }
-    setCatalog((current) => ({
-      ...current,
-      brands: [...current.brands, { id: data.id, name: data.name }],
-    }));
+    setError("");
+    setCatalog((current) => {
+      const exists = current.brands.some((b) => b.id === data.id);
+      return {
+        ...current,
+        brands: exists ? current.brands : [...current.brands, { id: data.id, name: data.name }],
+      };
+    });
     setForm((current) => ({ ...current, brandId: data.id }));
     setNewBrand("");
   }

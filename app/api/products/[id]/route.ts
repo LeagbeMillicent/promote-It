@@ -86,6 +86,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       tone,
     });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("Unique constraint") || msg.includes("P2002") || msg.includes("sku")) {
+      return NextResponse.json({ error: "A product with this SKU already exists" }, { status: 409 });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Product could not be updated" }, { status: 400 });
   }
 }
