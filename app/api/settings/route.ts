@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { getStoreSettings, saveStoreSettings } from "@/lib/settings-server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const settings = getStoreSettings();
     return NextResponse.json(settings);
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to load settings" },
-      { status: 500 }
-    );
+    return formatErrorResponse(err, "Failed to load settings", 500);
   }
 }
 
@@ -36,9 +36,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, settings: updated });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to save settings" },
-      { status: 500 }
-    );
+    return formatErrorResponse(err, "Failed to save settings", 500);
   }
 }

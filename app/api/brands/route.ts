@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ error: "A brand with this name already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Brand could not be created" }, { status: 400 });
+    return formatErrorResponse(error, "Brand could not be created");
   }
 }
 

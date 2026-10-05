@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json() as { name?: string; email?: string; status?: "ACTIVE" | "INACTIVE" };
     const data: Record<string, unknown> = { updatedAt: new Date() };
     if (body.name !== undefined) data.name = body.name.trim();
-    if (body.email !== undefined) data.email = body.email.trim();
+    if (body.email !== undefined) data.email = body.email.trim().toLowerCase();
     if (body.status !== undefined) data.status = body.status;
     const user = await db.user.update({ where: { id }, data, include: { role: true } });
     return NextResponse.json({
@@ -20,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       tone: user.status === "ACTIVE" ? "green" : "red",
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "User could not be updated" }, { status: 400 });
+    return formatErrorResponse(error, "User could not be updated");
   }
 }
 

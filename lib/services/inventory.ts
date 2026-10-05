@@ -40,7 +40,7 @@ export async function applyInventoryChange(
     throw new Error("Inventory change would result in negative stock");
   }
 
-  const [updatedVariant, movement] = await transaction.$transaction([
+  const [updatedVariant, movement] = await Promise.all([
     transaction.productVariant.update({
       where: { id: change.productVariantId },
       data: { stock: { increment: signedQuantity } },

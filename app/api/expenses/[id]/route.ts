@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const expense = await db.expense.update({ where: { id }, data });
     return NextResponse.json(expense);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Expense could not be updated" }, { status: 400 });
+    return formatErrorResponse(error, "Expense could not be updated");
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -125,9 +126,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(purchase, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Purchase could not be created" },
-      { status: 400 }
-    );
+    return formatErrorResponse(error, "Purchase could not be created");
   }
 }

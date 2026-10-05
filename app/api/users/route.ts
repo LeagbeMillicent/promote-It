@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     const user = await db.user.create({
       data: {
         name: body.name.trim(),
-        email: body.email.trim(),
+        email: body.email.trim().toLowerCase(),
         roleId: body.roleId,
         status: body.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
       },
@@ -43,6 +44,6 @@ export async function POST(request: Request) {
       tone: user.status === "ACTIVE" ? "green" : "red",
     }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "User could not be created" }, { status: 400 });
+    return formatErrorResponse(error, "User could not be created");
   }
 }

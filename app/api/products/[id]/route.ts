@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -86,11 +87,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       tone,
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes("Unique constraint") || msg.includes("P2002") || msg.includes("sku")) {
-      return NextResponse.json({ error: "A product with this SKU already exists" }, { status: 409 });
-    }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Product could not be updated" }, { status: 400 });
+    return formatErrorResponse(error, "Product could not be updated");
   }
 }
 
@@ -109,15 +106,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await db.productVariant.delete({ where: { id: existing.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    const isConstraint = msg.includes("foreign key") || msg.includes("Foreign key") || msg.includes("violates") || msg.includes("restrict");
-    return NextResponse.json(
-      {
-        error: isConstraint
-          ? "This product is referenced by sales, purchases, or inventory movements and cannot be deleted. Deactivate it instead."
-          : "Product could not be deleted.",
-      },
-      { status: 400 }
+    return formatErrorResponse(
+      error,
+      "This product is referenced by sales, purchases, or inventory movements and cannot be deleted. Deactivate it instead."
     );
   }
 }

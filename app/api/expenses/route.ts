@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PaymentMethod } from "@prisma/client";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Expense could not be created" }, { status: 400 });
+    return formatErrorResponse(error, "Expense could not be created");
   }
 }
 

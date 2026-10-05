@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { applyInventoryChange } from "@/lib/services/inventory";
+import { formatErrorResponse } from "@/lib/errors";
 
 export async function POST(request: Request) {
   try {
@@ -10,5 +11,7 @@ export async function POST(request: Request) {
     if (!variant || !location || !user) return NextResponse.json({ error: "Product, location, or user was not found" }, { status: 404 });
     const result = await db.$transaction((transaction) => applyInventoryChange(transaction, { productVariantId: variant.id, locationId: location.id, userId: user.id, quantity: body.quantity as number, type: body.direction === "OUT" ? "ADJUSTMENT_OUT" : "ADJUSTMENT_IN", reason: body.reason?.trim() }));
     return NextResponse.json(result, { status: 201 });
-  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Inventory adjustment failed" }, { status: 400 }); }
+  } catch (error) {
+    return formatErrorResponse(error, "Inventory adjustment failed");
+  }
 }

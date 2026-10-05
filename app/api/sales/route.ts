@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createSale } from "@/lib/services/sales";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -228,6 +229,6 @@ export async function POST(request: Request) {
       receipt,
     }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sale could not be completed" }, { status: 400 });
+    return formatErrorResponse(error, "Sale could not be completed");
   }
 }

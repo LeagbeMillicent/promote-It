@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "node:crypto";
+import { formatErrorResponse } from "@/lib/errors";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,6 @@ export async function POST(request: Request) {
     response.cookies.set("auth-token", token, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
     return response;
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sign-in failed" }, { status: 500 });
+    return formatErrorResponse(error, "Sign-in failed. Please try again.", 500);
   }
 }

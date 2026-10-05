@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -72,10 +73,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(customer, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create customer" },
-      { status: 400 }
-    );
+    return formatErrorResponse(error, "Customer could not be created");
   }
 }
 
@@ -107,10 +105,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(customer);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update customer" },
-      { status: 400 }
-    );
+    return formatErrorResponse(error, "Customer could not be updated");
   }
 }
 
@@ -124,7 +119,7 @@ export async function DELETE(request: Request) {
 
     await db.customer.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Customer could not be deleted" }, { status: 400 });
+  } catch (error) {
+    return formatErrorResponse(error, "Customer could not be deleted");
   }
 }

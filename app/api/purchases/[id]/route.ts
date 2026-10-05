@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -98,10 +99,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json(purchase);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Purchase could not be updated" },
-      { status: 400 }
-    );
+    return formatErrorResponse(error, "Purchase could not be updated");
   }
 }
 
@@ -114,7 +112,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!existing) return NextResponse.json({ error: "Purchase not found" }, { status: 404 });
     await db.purchase.update({ where: { id: existing.id }, data: { status: "CANCELLED" } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Purchase could not be cancelled" }, { status: 400 });
+  } catch (error) {
+    return formatErrorResponse(error, "Purchase could not be cancelled");
   }
 }

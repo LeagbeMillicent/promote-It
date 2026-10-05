@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await db.user.update({ where: { id }, data: { passwordHash: hash, updatedAt: new Date() } });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Password could not be reset" }, { status: 400 });
+    return formatErrorResponse(error, "Password could not be reset");
   }
 }

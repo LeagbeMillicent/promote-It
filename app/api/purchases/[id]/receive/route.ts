@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { receivePurchase } from "@/lib/services/purchases";
+import { formatErrorResponse } from "@/lib/errors";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -10,5 +11,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!user) return NextResponse.json({ error: "Receiving user was not found" }, { status: 404 });
     const purchase = await receivePurchase(id, user.id);
     return NextResponse.json(purchase);
-  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Purchase could not be received" }, { status: 400 }); }
+  } catch (error) {
+    return formatErrorResponse(error, "Purchase could not be received");
+  }
 }

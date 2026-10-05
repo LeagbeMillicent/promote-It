@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { formatErrorResponse } from "@/lib/errors";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -103,7 +104,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       tone: sale.status === "COMPLETED" ? "green" : "red",
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sale could not be updated" }, { status: 400 });
+    return formatErrorResponse(error, "Sale could not be updated");
   }
 }
 
@@ -122,7 +123,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     ]);
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Sale could not be updated" }, { status: 400 });
+  } catch (error) {
+    return formatErrorResponse(error, "Sale could not be cancelled");
   }
 }
