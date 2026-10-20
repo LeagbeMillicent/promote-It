@@ -4356,6 +4356,242 @@ hr.receipt-divider-solid {
   font-size: 12.5px !important;
 }
 
+/* Product Search Combobox */
+.product-search-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--ink-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.product-search-trigger:hover {
+  border-color: var(--brand-primary);
+  background: var(--bg-card-hover);
+}
+
+.product-search-trigger.is-open {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.product-search-trigger-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-trigger-placeholder {
+  color: var(--ink-muted);
+}
+
+.product-trigger-selected {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.product-trigger-name {
+  color: var(--ink-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-trigger-sub {
+  font-size: 11px;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.product-trigger-chevron {
+  color: var(--ink-muted);
+  flex-shrink: 0;
+  margin-left: 6px;
+  transition: transform 0.2s ease;
+}
+
+.product-trigger-chevron.open {
+  transform: rotate(180deg);
+  color: var(--brand-primary);
+}
+
+/* Floating Dropdown Menu (via React Portal) */
+.product-search-dropdown-menu {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 300px;
+  animation: dropdownFadeIn 0.12s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-search-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+}
+
+.product-search-icon {
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.product-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  background: transparent !important;
+  padding: 2px 0 !important;
+  font-size: 12.5px !important;
+  color: var(--ink-primary) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.product-search-input::placeholder {
+  color: var(--ink-muted);
+}
+
+.product-search-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--border-medium);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.product-search-clear-btn:hover {
+  background: var(--ink-muted);
+  color: var(--bg-surface);
+}
+
+.product-search-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 240px;
+  padding: 4px;
+}
+
+.product-search-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.product-search-option:hover,
+.product-search-option.highlighted {
+  background: var(--bg-subtle);
+}
+
+.product-search-option.selected {
+  background: var(--brand-primary-light);
+}
+
+.product-option-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.product-option-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-option-sku {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.product-option-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.product-option-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+.product-option-stock {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--status-green-bg);
+  color: var(--status-green);
+  border: 1px solid var(--status-green-border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.product-option-check {
+  color: var(--brand-primary);
+}
+
+.product-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 16px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
 .sale-qty-input {
   padding: 6px 4px !important;
   text-align: center !important;

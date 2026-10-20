@@ -3,8 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { CreditCard, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import { ReceiptData, ReceiptModal } from "@/components/receipt-modal";
+import { ProductSearchSelect } from "@/components/product-search-select";
 
-type ProductOption = { variantId: string; name: string; sellingPrice: number; stock: number };
+type ProductOption = { variantId: string; name: string; sku?: string; sellingPrice: number; stock: number };
 type CustomerOption = { id: string; name: string; phone?: string };
 
 type CartItemRow = {
@@ -53,6 +54,7 @@ export function SaleCreateModal({
             return {
               variantId: variant.variantId || variant.id,
               name: values[0] || variant.id,
+              sku: values[3] || "",
               sellingPrice: Number(priceStr) || 0,
               stock: Number(stockStr) || 0,
             };
@@ -270,20 +272,16 @@ export function SaleCreateModal({
 
                   return (
                     <div className="sale-item-row" key={item.key}>
-                      {/* Product Selector */}
-                      <select
+                      {/* Searchable Product Selector */}
+                      <ProductSearchSelect
+                        products={products}
                         value={item.productVariantId}
-                        onChange={(e) => updateItem(index, { productVariantId: e.target.value })}
+                        onChange={(selectedVariantId) =>
+                          updateItem(index, { productVariantId: selectedVariantId })
+                        }
+                        placeholder="Search or choose product..."
                         required
-                        className="sale-product-select"
-                      >
-                        <option value="">Choose a product...</option>
-                        {products.map((p) => (
-                          <option value={p.variantId} key={p.variantId}>
-                            {p.name} — GHS {p.sellingPrice.toFixed(2)} ({p.stock} in stock)
-                          </option>
-                        ))}
-                      </select>
+                      />
 
                       {/* Quantity Input */}
                       <input
