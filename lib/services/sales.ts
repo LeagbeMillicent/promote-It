@@ -95,3 +95,116 @@ export async function createSale(input: CreateSaleInput) {
     return sale;
   });
 }
+
+export type GetSalesOptions = {
+  searchTerm?: string;
+  status?: string;
+  take?: number;
+};
+
+export async function getSales(options: GetSalesOptions = {}) {
+  const { searchTerm, status, take = 200 } = options;
+
+  const where: Prisma.SaleWhereInput = {};
+
+  if (searchTerm && searchTerm.trim()) {
+    const trimmed = searchTerm.trim();
+    const orConditions: Prisma.SaleWhereInput[] = [
+      { saleNumber: { contains: trimmed, mode: "insensitive" } },
+      { customer: { name: { contains: trimmed, mode: "insensitive" } } },
+      { customer: { phone: { contains: trimmed, mode: "insensitive" } } },
+      { customer: { email: { contains: trimmed, mode: "insensitive" } } },
+      { cashier: { name: { contains: trimmed, mode: "insensitive" } } },
+      { cashier: { email: { contains: trimmed, mode: "insensitive" } } },
+      { location: { name: { contains: trimmed, mode: "insensitive" } } },
+      {
+        items: {
+          some: {
+            OR: [
+              { productVariant: { name: { contains: trimmed, mode: "insensitive" } } },
+              { productVariant: { sku: { contains: trimmed, mode: "insensitive" } } },
+              { productVariant: { barcode: { contains: trimmed, mode: "insensitive" } } },
+              { productVariant: { product: { name: { contains: trimmed, mode: "insensitive" } } } },
+            ],
+          },
+        },
+      },
+      {
+        payments: {
+          some: {
+            reference: { contains: trimmed, mode: "insensitive" },
+          },
+        },
+      },
+    ];
+
+    const upper = trimmed.toUpperCase().replace(/\s+/g, "_");
+    const matchedMethods: PaymentMethod[] = [];
+    if (upper === "CASH" || upper.includes("CASH")) matchedMethods.push(PaymentMethod.CASH);
+    if (upper === "MOMO" || upper === "MOBILE_MONEY" || upper.includes("MOMO") || upper.includes("MOBILE")) {
+      matchedMethods.push(PaymentMethod.MOBILE_MONEY);
+    }
+    if (upper === "CARD" || upper.includes("CARD")) matchedMethods.push(PaymentMethod.CARD);
+    if (upper === "BANK" || upper.includes("TRANSFER") || upper.includes("BANK")) {
+      matchedMethods.push(PaymentMethod.BANK_TRANSFER);
+    }
+    if (upper === "OTHER") matchedMethods.push(PaymentMethod.OTHER);
+
+    if (matchedMethods.length > 0) {
+      orConditions.push({
+        payments: {
+          some: {
+            method: { in: matchedMethods },
+          },
+        },
+      });
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (lower === "paid" || lower === "completed") {
+      orConditions.push({ status: "COMPLETED" });
+    } else if (lower === "not paid" || lower === "unpaid" || lower === "cancelled") {
+      orConditions.push({ status: "CANCELLED" });
+    }
+
+    const num = Number(trimmed);
+    if (!isNaN(num) && num > 0) {
+      orConditions.push({ total: { equals: new Prisma.Decimal(num) } });
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    if (isUuid) {
+      orConditions.push({ id: trimmed });
+    }
+
+    where.OR = orConditions;
+  }
+
+  if (status) {
+    const upperStatus = status.toUpperCase();
+    if (upperStatus === "PAID" || upperStatus === "COMPLETED") {
+      where.status = "COMPLETED";
+    } else if (upperStatus === "NOT PAID" || upperStatus === "CANCELLED" || upperStatus === "UNPAID") {
+      where.status = "CANCELLED";
+    }
+  }
+
+  return db.sale.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take,
+    include: {
+      payments: true,
+      items: {
+        include: {
+          productVariant: {
+            include: { product: true },
+          },
+        },
+      },
+      customer: true,
+      cashier: true,
+      location: true,
+    },
+  });
+}

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { Pagination } from "@/components/pagination";
 
 type SupplierRow = {
   id: string;
@@ -115,6 +116,17 @@ export default function SuppliersPage() {
       return matchesQuery && matchesFilter;
     });
   }, [filter, query, suppliers]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const totalPages = Math.max(1, Math.ceil(visibleSuppliers.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedSuppliers = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return visibleSuppliers.slice(startIndex, startIndex + pageSize);
+  }, [visibleSuppliers, safePage, pageSize]);
 
   function openCreate() {
     setSelectedSupplier(null);
@@ -258,7 +270,10 @@ export default function SuppliersPage() {
                 <Search size={16} />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setCurrentPage(1);
+                  }}
                   placeholder="Search vendor, contact, phone..."
                 />
               </div>
@@ -268,7 +283,10 @@ export default function SuppliersPage() {
                     key={option}
                     type="button"
                     className={`filter-chip ${filter === option ? "active" : ""}`}
-                    onClick={() => setFilter(option)}
+                    onClick={() => {
+                      setFilter(option);
+                      setCurrentPage(1);
+                    }}
                   >
                     {option === "All suppliers" ? "All" : option}
                   </button>
@@ -298,7 +316,7 @@ export default function SuppliersPage() {
           {/* Grid View */}
           {viewMode === "grid" ? (
             <div className="supplier-grid">
-              {visibleSuppliers.map((supplier) => (
+              {paginatedSuppliers.map((supplier) => (
                 <article className="supplier-card-modern" key={supplier.id}>
                   <div className="supplier-card-header">
                     <div className="supplier-brand-wrap">
@@ -392,7 +410,7 @@ export default function SuppliersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleSuppliers.map((supplier) => (
+                  {paginatedSuppliers.map((supplier) => (
                     <tr key={supplier.id}>
                       <td>
                         <strong className="record-id">{supplier.id.slice(0, 8)}</strong>
@@ -458,6 +476,16 @@ export default function SuppliersPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {visibleSuppliers.length > 0 && (
+            <Pagination
+              currentPage={safePage}
+              totalItems={visibleSuppliers.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              itemName="suppliers"
+            />
           )}
         </section>
       </div>

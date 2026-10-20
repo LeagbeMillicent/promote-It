@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download, Edit3, Package, Plus, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { Pagination } from "@/components/pagination";
 
 export type Row = { id: string; values: string[]; status?: string; tone?: string; [key: string]: unknown };
 
@@ -62,6 +63,8 @@ export function ManagementPage({
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState(filters?.[0] ?? "All status");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -75,6 +78,14 @@ export function ManagementPage({
       return matchesQuery && matchesFilter;
     });
   }, [rows, query, filter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedRows = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredRows.slice(startIndex, startIndex + pageSize);
+  }, [filteredRows, safePage, pageSize]);
 
   return (
     <AppShell active={active}>
@@ -116,7 +127,10 @@ export function ManagementPage({
                 <Search size={16} />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setCurrentPage(1);
+                  }}
                   placeholder={searchPlaceholder ?? "Search records..."}
                 />
               </div>
@@ -127,7 +141,10 @@ export function ManagementPage({
                       key={option}
                       type="button"
                       className={`filter-chip ${filter === option ? "active" : ""}`}
-                      onClick={() => setFilter(option)}
+                      onClick={() => {
+                        setFilter(option);
+                        setCurrentPage(1);
+                      }}
                     >
                       {option}
                     </button>
@@ -148,7 +165,7 @@ export function ManagementPage({
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => (
+                {paginatedRows.map((row) => (
                   <tr key={row.id}>
                     <td>
                       <strong className="record-id">{row.id}</strong>
@@ -222,6 +239,16 @@ export function ManagementPage({
               </div>
             )}
           </div>
+
+          {filteredRows.length > 0 && (
+            <Pagination
+              currentPage={safePage}
+              totalItems={filteredRows.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              itemName={title.toLowerCase()}
+            />
+          )}
         </section>
       </div>
     </AppShell>

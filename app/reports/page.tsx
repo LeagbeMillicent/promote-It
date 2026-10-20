@@ -33,6 +33,7 @@ import {
   YAxis,
 } from "recharts";
 import { AppShell } from "@/components/app-shell";
+import { Pagination } from "@/components/pagination";
 
 type CategoryReport = {
   id: string;
@@ -100,6 +101,28 @@ export default function ReportsPage() {
     const matchesSearch = c.name.toLowerCase().includes(categorySearch.toLowerCase());
     return matchesSearch;
   });
+
+  const [categoryPage, setCategoryPage] = useState(1);
+  const categoryPageSize = 10;
+
+  const totalCategoryPages = Math.max(1, Math.ceil(filteredCategories.length / categoryPageSize));
+  const safeCategoryPage = Math.min(Math.max(1, categoryPage), totalCategoryPages);
+
+  const paginatedCategories = filteredCategories.slice(
+    (safeCategoryPage - 1) * categoryPageSize,
+    (safeCategoryPage - 1) * categoryPageSize + categoryPageSize
+  );
+
+  const [productPage, setProductPage] = useState(1);
+  const productPageSize = 10;
+  const topProductsList = data?.topProducts || [];
+  const totalProductPages = Math.max(1, Math.ceil(topProductsList.length / productPageSize));
+  const safeProductPage = Math.min(Math.max(1, productPage), totalProductPages);
+
+  const paginatedTopProducts = topProductsList.slice(
+    (safeProductPage - 1) * productPageSize,
+    (safeProductPage - 1) * productPageSize + productPageSize
+  );
 
   const activeStats = selectedCategory
     ? {
@@ -590,7 +613,10 @@ export default function ReportsPage() {
                 <Search size={15} />
                 <input
                   value={categorySearch}
-                  onChange={(e) => setCategorySearch(e.target.value)}
+                  onChange={(e) => {
+                    setCategorySearch(e.target.value);
+                    setCategoryPage(1);
+                  }}
                   placeholder="Search category name..."
                   style={{ fontSize: "13px" }}
                 />
@@ -613,7 +639,7 @@ export default function ReportsPage() {
                 </thead>
                 <tbody>
                   {filteredCategories.length > 0 ? (
-                    filteredCategories.map((c) => {
+                    paginatedCategories.map((c) => {
                       const isSelected = selectedCategoryId === c.id;
                       return (
                         <tr
@@ -723,6 +749,16 @@ export default function ReportsPage() {
                 </tbody>
               </table>
             </div>
+
+            {filteredCategories.length > 0 && (
+              <Pagination
+                currentPage={safeCategoryPage}
+                totalItems={filteredCategories.length}
+                pageSize={categoryPageSize}
+                onPageChange={setCategoryPage}
+                itemName="categories"
+              />
+            )}
           </div>
         </section>
 
@@ -880,7 +916,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {data && data.topProducts.length > 0 ? (
-                  data.topProducts.map((p) => (
+                  paginatedTopProducts.map((p) => (
                     <tr key={p.sku}>
                       <td>
                         <strong>{p.name}</strong>
@@ -905,6 +941,16 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+
+          {topProductsList.length > 0 && (
+            <Pagination
+              currentPage={safeProductPage}
+              totalItems={topProductsList.length}
+              pageSize={productPageSize}
+              onPageChange={setProductPage}
+              itemName="products"
+            />
+          )}
         </section>
       </div>
     </AppShell>

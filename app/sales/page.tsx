@@ -21,6 +21,7 @@ import { SaleCreateModal } from "@/components/sale-create-modal";
 import { ReceiptData, ReceiptModal } from "@/components/receipt-modal";
 import { SaleDetailModal, SaleDetailData } from "@/components/sale-detail-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { Pagination } from "@/components/pagination";
 import {
   getCurrentWeekDays,
   getTodayDateString,
@@ -87,7 +88,19 @@ function exportCSV(rows: SaleRow[]) {
 
 export default function SalesPage() {
   const [rows, setRows] = useState<SaleRow[]>([]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return (
+        params.get("searchTerm") ||
+        params.get("search") ||
+        params.get("query") ||
+        params.get("q") ||
+        ""
+      );
+    }
+    return "";
+  });
   const [statusFilter, setStatusFilter] = useState("All status");
 
   // Filter periods: "all" | "today" | "yesterday" | "this-week" | "month"
@@ -183,16 +196,23 @@ export default function SalesPage() {
     });
   }
 
-  function loadSales() {
-    fetch("/api/sales")
+  function loadSales(searchTerm?: string) {
+    const url = searchTerm && searchTerm.trim()
+      ? `/api/sales?searchTerm=${encodeURIComponent(searchTerm.trim())}`
+      : "/api/sales";
+    fetch(url)
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setRows(Array.isArray(data) ? data : []))
       .catch(() => setRows([]));
   }
 
+  // Query database for sales matching searchTerm / query (runs on mount and on debounced query changes)
   useEffect(() => {
-    loadSales();
-  }, []);
+    const timer = setTimeout(() => {
+      loadSales(query || undefined);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const monthOptions = useMemo(() => {
     const monthsSet = new Set<string>();
@@ -288,9 +308,11 @@ export default function SalesPage() {
       }
 
       // 2. Text Search Query
-      const itemsNames = (row.items || []).map((it) => `${it.name} ${it.sku || ""}`).join(" ");
-      const rowText = `${row.id} ${row.paymentMethod || ""} ${row.customerName || ""} ${row.cashierName || ""} ${itemsNames} ${row.values?.join(" ") || ""}`.toLowerCase();
-      if (query && !rowText.includes(query.toLowerCase())) return false;
+      const itemsDetails = (row.items || [])
+        .map((it) => `${it.name} ${it.sku || ""} ${it.quantity}x ${it.unitPrice} ${it.total}`)
+        .join(" ");
+      const rowText = `${row.id} ${row.saleId || ""} ${row.paymentMethod || ""} ${row.paymentReference || ""} ${row.customerName || ""} ${row.cashierName || ""} ${row.locationName || ""} ${itemsDetails} ${row.values?.join(" ") || ""}`.toLowerCase();
+      if (query && !rowText.includes(query.toLowerCase().trim())) return false;
 
       // 3. Status Filtering
       if (statusFilter !== "All status") {
@@ -308,6 +330,17 @@ export default function SalesPage() {
       return true;
     });
   }, [rows, period, selectedWeekDay, selectedMonth, query, statusFilter, weekDays, todayStr, yesterdayStr]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedRows = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredRows.slice(startIndex, startIndex + pageSize);
+  }, [filteredRows, safePage, pageSize]);
 
   // Total recorded sales for the filtered view
   const totalRecordedSales = useMemo(() => {
@@ -458,6 +491,7 @@ export default function SalesPage() {
                 onClick={() => {
                   setPeriod("all");
                   setSelectedWeekDay("all");
+                  setCurrentPage(1);
                 }}
               >
                 All Time
@@ -470,6 +504,7 @@ export default function SalesPage() {
                 onClick={() => {
                   setPeriod("today");
                   setSelectedWeekDay("all");
+                  setCurrentPage(1);
                 }}
               >
                 <Clock size={13} />
@@ -483,6 +518,7 @@ export default function SalesPage() {
                 onClick={() => {
                   setPeriod("yesterday");
                   setSelectedWeekDay("all");
+                  setCurrentPage(1);
                 }}
               >
                 Yesterday
@@ -495,6 +531,7 @@ export default function SalesPage() {
                 onClick={() => {
                   setPeriod("this-week");
                   setSelectedWeekDay("all");
+                  setCurrentPage(1);
                 }}
               >
                 <Calendar size={13} />
@@ -508,6 +545,7 @@ export default function SalesPage() {
                 onClick={() => {
                   setPeriod("month");
                   setSelectedWeekDay("all");
+                  setCurrentPage(1);
                 }}
               >
                 Monthly
@@ -519,7 +557,10 @@ export default function SalesPage() {
                 <span className="period-month-label">Month:</span>
                 <select
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="month-select"
                   aria-label="Select month"
                 >
@@ -552,7 +593,10 @@ export default function SalesPage() {
                 <button
                   type="button"
                   className={`week-day-chip ${selectedWeekDay === "all" ? "active" : ""}`}
-                  onClick={() => setSelectedWeekDay("all")}
+                  onClick={() => {
+                    setSelectedWeekDay("all");
+                    setCurrentPage(1);
+                  }}
                 >
                   All Days ({periodCounts.weekCount} sales)
                 </button>
@@ -569,7 +613,10 @@ export default function SalesPage() {
                       className={`week-day-card ${isSelected ? "active" : ""} ${
                         day.isToday ? "is-today" : ""
                       }`}
-                      onClick={() => setSelectedWeekDay(day.dateString)}
+                      onClick={() => {
+                        setSelectedWeekDay(day.dateString);
+                        setCurrentPage(1);
+                      }}
                       title={`Filter sales for ${day.fullDayName}, ${day.formattedDate}`}
                     >
                       <div className="week-day-card-top">
@@ -653,9 +700,34 @@ export default function SalesPage() {
                 <Search size={16} />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search sale, product, customer..."
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search sale, product, customer, reference..."
+                  aria-label="Search sales transactions"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("");
+                      setCurrentPage(1);
+                    }}
+                    title="Clear search"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "2px 4px",
+                      display: "flex",
+                      alignItems: "center",
+                      color: "var(--ink-secondary)",
+                    }}
+                  >
+                    <XCircle size={15} />
+                  </button>
+                )}
               </div>
               <div className="filter-group">
                 {["All status", "Paid", "Not Paid"].map((option) => (
@@ -663,7 +735,10 @@ export default function SalesPage() {
                     key={option}
                     type="button"
                     className={`filter-chip ${statusFilter === option ? "active" : ""}`}
-                    onClick={() => setStatusFilter(option)}
+                    onClick={() => {
+                      setStatusFilter(option);
+                      setCurrentPage(1);
+                    }}
                   >
                     {option}
                   </button>
@@ -686,7 +761,7 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => {
+                {paginatedRows.map((row) => {
                   const itemsQty =
                     row.totalQuantity ??
                     (row.items?.reduce((acc, it) => acc + it.quantity, 0) || 1);
@@ -834,6 +909,16 @@ export default function SalesPage() {
               </div>
             )}
           </div>
+
+          {filteredRows.length > 0 && (
+            <Pagination
+              currentPage={safePage}
+              totalItems={filteredRows.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              itemName="sales"
+            />
+          )}
         </section>
       </div>
 

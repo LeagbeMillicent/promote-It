@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { createSale } from "@/lib/services/sales";
+import { createSale, getSales } from "@/lib/services/sales";
 import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const sales = await db.sale.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        payments: true,
-        items: {
-          include: {
-            productVariant: {
-              include: { product: true },
-            },
-          },
-        },
-        customer: true,
-        cashier: true,
-        location: true,
-      },
+    const { searchParams } = new URL(request.url);
+    const searchTerm = (
+      searchParams.get("searchTerm") ||
+      searchParams.get("search") ||
+      searchParams.get("query") ||
+      searchParams.get("q") ||
+      ""
+    ).trim();
+    const statusParam = searchParams.get("status") || undefined;
+    const limitParam = searchParams.get("limit") || searchParams.get("take");
+    const take = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 500) : 200;
+
+    const sales = await getSales({
+      searchTerm: searchTerm || undefined,
+      status: statusParam,
+      take,
     });
     return NextResponse.json(
       sales.map((sale) => {
