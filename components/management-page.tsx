@@ -43,6 +43,8 @@ export function ManagementPage({
   renderRowActions,
   showCreate = true,
   showRowActions = true,
+  headerContent,
+  extraActions,
 }: {
   active: string;
   title: string;
@@ -60,6 +62,8 @@ export function ManagementPage({
   renderRowActions?: (row: Row) => React.ReactNode;
   showCreate?: boolean;
   showRowActions?: boolean;
+  headerContent?: React.ReactNode;
+  extraActions?: React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState(filters?.[0] ?? "All status");
@@ -90,6 +94,7 @@ export function ManagementPage({
   return (
     <AppShell active={active}>
       <div className="page-wrap management-page">
+        {headerContent}
         <section className="page-heading">
           <div>
             <div className="eyebrow">
@@ -99,6 +104,7 @@ export function ManagementPage({
             <p>{description}</p>
           </div>
           <div className="heading-actions">
+            {extraActions}
             <button
               className="secondary-button"
               onClick={() => exportCSV(filteredRows, columns, title.toLowerCase().replace(/\s+/g, "-"))}

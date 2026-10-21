@@ -23,6 +23,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Store,
+  FolderTree,
   Truck,
   Users,
   WalletCards,
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/sales", label: "Sales", icon: ShoppingCart, badge: "sales" },
   { href: "/products", label: "Products", icon: Package },
+  { href: "/categories", label: "Categories & Brands", icon: FolderTree },
   { href: "/inventory", label: "Inventory", icon: Boxes, alert: true },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag },
   { href: "/suppliers", label: "Suppliers", icon: Truck },
@@ -139,14 +141,20 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
         </div>
 
         <nav className="side-nav" aria-label="Main navigation">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.href}
-              {...item}
-              active={active === item.href}
-              salesCount={salesCount}
-            />
-          ))}
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/categories"
+                ? active === "/categories" || active === "/brands"
+                : active === item.href;
+            return (
+              <NavItem
+                key={item.href}
+                {...item}
+                active={isActive}
+                salesCount={salesCount}
+              />
+            );
+          })}
           <div className="nav-section-label">Administration</div>
           {adminItems.map((item) => (
             <NavItem
@@ -193,6 +201,10 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
               <strong>
                 {active === "/"
                   ? "Dashboard"
+                  : active === "/categories"
+                  ? "Categories"
+                  : active === "/brands"
+                  ? "Brands"
                   : active.slice(1).replaceAll("-", " ")}
               </strong>
             </div>
@@ -259,6 +271,9 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
                   </div>
                   <Link href="/team" className="dropdown-item">
                     <Users size={16} /> Team & permissions
+                  </Link>
+                  <Link href="/categories" className="dropdown-item">
+                    <FolderTree size={16} /> Categories & Brands
                   </Link>
                   <Link href="/audit-logs" className="dropdown-item">
                     <FileText size={16} /> Audit logs

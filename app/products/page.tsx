@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Award, FolderTree, Package } from "lucide-react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { ProductFormModal } from "@/components/product-form-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
@@ -113,6 +115,79 @@ export default function ProductsPage() {
         title="Products Catalog"
         description="Manage your inventory items, pricing margins, variants, and stock thresholds."
         action="Add product"
+        headerContent={
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderBottom: "1px solid var(--border-subtle)",
+              marginBottom: "20px",
+              paddingBottom: "12px",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Link
+                href="/products"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: "var(--brand-primary)",
+                  color: "#ffffff",
+                  textDecoration: "none",
+                  boxShadow: "0 2px 6px rgba(37, 99, 235, 0.25)",
+                }}
+              >
+                <Package size={16} /> All Products
+              </Link>
+              <Link
+                href="/categories"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: "var(--bg-surface)",
+                  color: "var(--ink-secondary)",
+                  textDecoration: "none",
+                  border: "1px solid var(--border-subtle)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <FolderTree size={16} /> Categories
+              </Link>
+              <Link
+                href="/brands"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: "var(--bg-surface)",
+                  color: "var(--ink-secondary)",
+                  textDecoration: "none",
+                  border: "1px solid var(--border-subtle)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <Award size={16} /> Brands
+              </Link>
+            </div>
+          </div>
+        }
         columns={["Product ID", "Product name", "Category", "Brand", "SKU code", "Selling price", "In stock", "Availability"]}
         rows={rows}
         searchPlaceholder="Search product by name, SKU or category..."

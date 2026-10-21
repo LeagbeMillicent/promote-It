@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
+  Award,
   Bell,
   Building2,
   Check,
   CreditCard,
+  FolderTree,
   Loader2,
   Save,
   ShieldCheck,
@@ -215,6 +218,70 @@ export default function SettingsPage() {
                 onChange={(e) => updateField("receiptFooter", e.target.value)}
               />
             </label>
+          </section>
+
+          {/* Catalog Taxonomy & Brand Configuration Card */}
+          <section className="panel settings-card">
+            <div className="settings-icon blue">
+              <FolderTree size={20} />
+            </div>
+            <div>
+              <h2>Catalog Taxonomy & Brand Configuration</h2>
+              <p>Configure product categories, department hierarchies, and brand designations.</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 14px",
+                  background: "var(--bg-subtle)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div>
+                  <strong style={{ display: "block", fontSize: "13.5px" }}>Product Categories</strong>
+                  <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
+                    Organize catalog departments, subcategories, and stock groups
+                  </span>
+                </div>
+                <Link
+                  href="/categories"
+                  className="secondary-button"
+                  style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FolderTree size={14} /> Configure Categories
+                </Link>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 14px",
+                  background: "var(--bg-subtle)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div>
+                  <strong style={{ display: "block", fontSize: "13.5px" }}>Brands & Labels</strong>
+                  <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
+                    Maintain manufacturer labels and brand designations
+                  </span>
+                </div>
+                <Link
+                  href="/brands"
+                  className="secondary-button"
+                  style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Award size={14} /> Configure Brands
+                </Link>
+              </div>
+            </div>
           </section>
 
           {/* Payment Methods Card */}
