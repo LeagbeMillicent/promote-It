@@ -24,6 +24,51 @@ export async function GET(request: Request) {
       include: { product: { include: { category: true, brand: true } } },
     });
 
+    // Self-healing: Check for any products that do not have variants yet (e.g. seeded via SQL)
+    const unlinkedProducts = await db.product.findMany({
+      where: {
+        variants: { none: {} },
+        ...(categoryId && categoryId !== "ALL"
+          ? {
+              OR: [
+                { categoryId },
+                { category: { name: { equals: categoryId, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
+      },
+      include: { category: true, brand: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (unlinkedProducts.length > 0) {
+      const defaultLocation = await db.location.findFirst({ orderBy: { createdAt: "asc" } });
+      if (defaultLocation) {
+        for (const prod of unlinkedProducts) {
+          try {
+            const skuSuffix = prod.id.replaceAll("-", "").slice(-8).toUpperCase();
+            const newVariant = await db.productVariant.create({
+              data: {
+                productId: prod.id,
+                name: prod.name,
+                sku: `SKU-${skuSuffix}`,
+                unit: "piece",
+                costPrice: 0,
+                sellingPrice: 0,
+                stock: 0,
+                reorderLevel: 5,
+                locationId: defaultLocation.id,
+              },
+              include: { product: { include: { category: true, brand: true } } },
+            });
+            variants.push(newVariant);
+          } catch (err) {
+            console.warn(`Could not create auto-variant for ${prod.name}:`, err);
+          }
+        }
+      }
+    }
+
     return NextResponse.json(variants.map((variant) => {
       const outOfStock = variant.stock === 0;
       const critical = variant.stock > 0 && variant.stock <= Math.max(1, Math.floor(variant.reorderLevel / 2));
