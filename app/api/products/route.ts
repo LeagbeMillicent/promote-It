@@ -5,9 +5,21 @@ import { formatErrorResponse } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get("categoryId")?.trim();
+
     const variants = await db.productVariant.findMany({
+      where:
+        categoryId && categoryId !== "ALL"
+          ? {
+              OR: [
+                { product: { categoryId } },
+                { product: { category: { name: { equals: categoryId, mode: "insensitive" } } } },
+              ],
+            }
+          : undefined,
       orderBy: { createdAt: "desc" },
       include: { product: { include: { category: true, brand: true } } },
     });

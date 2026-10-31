@@ -45,6 +45,8 @@ export function ManagementPage({
   showRowActions = true,
   headerContent,
   extraActions,
+  extraFilterControls,
+  toolbarBelow,
 }: {
   active: string;
   title: string;
@@ -64,6 +66,8 @@ export function ManagementPage({
   showRowActions?: boolean;
   headerContent?: React.ReactNode;
   extraActions?: React.ReactNode;
+  extraFilterControls?: React.ReactNode;
+  toolbarBelow?: React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState(filters?.[0] ?? "All status");
@@ -140,6 +144,7 @@ export function ManagementPage({
                   placeholder={searchPlaceholder ?? "Search records..."}
                 />
               </div>
+              {extraFilterControls}
               {filters && filters.length > 0 && (
                 <div className="filter-group">
                   {filters.map((option) => (
@@ -159,6 +164,8 @@ export function ManagementPage({
               )}
             </div>
           </div>
+
+          {toolbarBelow}
 
           <div className="table-wrap records-table">
             <table>

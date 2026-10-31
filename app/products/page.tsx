@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Award, FolderTree, Package } from "lucide-react";
+import { Award, FolderTree, Package, X } from "lucide-react";
 import { ManagementPage, Row } from "@/components/management-page";
 import { ProductFormModal } from "@/components/product-form-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
@@ -21,8 +21,16 @@ type ProductRow = {
   tone?: string;
 };
 
+type Category = {
+  id: string;
+  name: string;
+  _count?: { products: number };
+};
+
 export default function ProductsPage() {
   const [rows, setRows] = useState<ProductRow[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<ProductRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
@@ -36,9 +44,50 @@ export default function ProductsPage() {
       .catch(() => setRows([]));
   }
 
+  function loadCategories() {
+    fetch("/api/categories")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }
+
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
+
+  // Compute live count of products per category from loaded rows
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.categoryId) {
+        counts[row.categoryId] = (counts[row.categoryId] || 0) + 1;
+      }
+      if (row.values[1]) {
+        counts[row.values[1].toLowerCase()] = (counts[row.values[1].toLowerCase()] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [rows]);
+
+  // Filter rows based on selected category
+  const filteredByCategoryRows = useMemo(() => {
+    if (!selectedCategory || selectedCategory === "ALL") return rows;
+    return rows.filter((r) => {
+      if (r.categoryId === selectedCategory) return true;
+      if (r.values[1] && r.values[1].toLowerCase() === selectedCategory.toLowerCase()) return true;
+      const matchedCat = categories.find((c) => c.id === selectedCategory);
+      if (matchedCat && r.values[1]?.toLowerCase() === matchedCat.name.toLowerCase()) return true;
+      return false;
+    });
+  }, [rows, selectedCategory, categories]);
+
+  // Active category display name
+  const activeCategoryObj = categories.find(
+    (c) => c.id === selectedCategory || c.name.toLowerCase() === selectedCategory.toLowerCase()
+  );
+  const activeCategoryName =
+    activeCategoryObj?.name || (selectedCategory !== "ALL" ? selectedCategory : "");
 
   function deleteProduct(row: Row) {
     setDeleteError(null);
@@ -61,6 +110,7 @@ export default function ProductsPage() {
       setIsDeleting(false);
       setDeleteTarget(null);
       loadProducts();
+      loadCategories();
     } catch {
       setDeleteError("Network error while deleting product");
       setIsDeleting(false);
@@ -87,6 +137,7 @@ export default function ProductsPage() {
       setIsDeleting(false);
       setDeleteTarget(null);
       loadProducts();
+      loadCategories();
     } catch {
       setDeleteError("Network error while deactivating product");
       setIsDeleting(false);
@@ -106,6 +157,11 @@ export default function ProductsPage() {
   function onClose() {
     setOpen(false);
     setEditRow(null);
+  }
+
+  function onSaved() {
+    loadProducts();
+    loadCategories();
   }
 
   return (
@@ -188,8 +244,95 @@ export default function ProductsPage() {
             </div>
           </div>
         }
-        columns={["Product ID", "Product name", "Category", "Brand", "SKU code", "Selling price", "In stock", "Availability"]}
-        rows={rows}
+        extraFilterControls={
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <div className="category-filter-select-wrap">
+              <FolderTree size={15} />
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                aria-label="Filter products by category"
+              >
+                <option value="ALL">All Categories ({rows.length})</option>
+                {categories.map((cat) => {
+                  const count =
+                    categoryCounts[cat.id] ??
+                    categoryCounts[cat.name.toLowerCase()] ??
+                    cat._count?.products ??
+                    0;
+                  return (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {selectedCategory !== "ALL" && (
+              <div className="active-filter-badge">
+                <span>Category: {activeCategoryName}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("ALL")}
+                  title="Clear category filter"
+                  aria-label="Clear category filter"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        }
+        toolbarBelow={
+          categories.length > 0 ? (
+            <div className="category-filter-bar">
+              <span className="category-filter-bar-label">
+                <FolderTree size={13} /> Categories
+              </span>
+              <button
+                type="button"
+                className={`category-pill ${selectedCategory === "ALL" ? "active" : ""}`}
+                onClick={() => setSelectedCategory("ALL")}
+              >
+                <span>All Categories</span>
+                <span className="category-pill-count">{rows.length}</span>
+              </button>
+              {categories.map((cat) => {
+                const count =
+                  categoryCounts[cat.id] ??
+                  categoryCounts[cat.name.toLowerCase()] ??
+                  cat._count?.products ??
+                  0;
+                const isActive =
+                  selectedCategory === cat.id ||
+                  selectedCategory.toLowerCase() === cat.name.toLowerCase();
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`category-pill ${isActive ? "active" : ""}`}
+                    onClick={() => setSelectedCategory(cat.id)}
+                  >
+                    <span>{cat.name}</span>
+                    <span className="category-pill-count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : undefined
+        }
+        columns={[
+          "Product ID",
+          "Product name",
+          "Category",
+          "Brand",
+          "SKU code",
+          "Selling price",
+          "In stock",
+          "Availability",
+        ]}
+        rows={filteredByCategoryRows}
         searchPlaceholder="Search product by name, SKU or category..."
         filters={["All status", "In stock", "Low stock", "Out of stock"]}
         onCreate={openCreate}
@@ -201,7 +344,7 @@ export default function ProductsPage() {
           key={editRow ? editRow.id : "new"}
           editRow={editRow}
           onClose={onClose}
-          onSaved={loadProducts}
+          onSaved={onSaved}
         />
       )}
 

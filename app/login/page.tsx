@@ -30,6 +30,13 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+      if (data.user) {
+        try {
+          localStorage.setItem("pos_current_user", JSON.stringify(data.user));
+        } catch {
+          // ignore
+        }
+      }
       router.push("/");
       router.refresh();
     } catch {

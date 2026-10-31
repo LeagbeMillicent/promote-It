@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const token = randomBytes(32).toString("hex");
     const response = NextResponse.json({ ok: true, user: { id: user.id, name: user.name, email: user.email, role: user.role.name } });
     response.cookies.set("auth-token", token, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
+    response.cookies.set("auth-user-id", user.id, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 8, path: "/" });
     return response;
   } catch (error) {
     return formatErrorResponse(error, "Sign-in failed. Please try again.", 500);

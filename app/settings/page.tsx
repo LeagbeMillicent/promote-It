@@ -9,13 +9,32 @@ import {
   Building2,
   Check,
   CreditCard,
+  Eye,
+  EyeOff,
   FolderTree,
+  KeyRound,
   Loader2,
   Save,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { DEFAULT_SETTINGS, StoreSettings } from "@/lib/settings-types";
+
+type TeamUser = {
+  id: string;
+  userId?: string;
+  values: string[];
+  status?: string;
+  tone?: string;
+};
+
+type CurrentUserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
 
 function getInitialSettings(): StoreSettings {
   if (typeof window !== "undefined") {
@@ -37,10 +56,35 @@ export default function SettingsPage() {
   const [savedNotice, setSavedNotice] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Fetch latest settings from server on mount
+  // Password reset state
+  const [currentUser, setCurrentUser] = useState<CurrentUserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("pos_current_user");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  });
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("me");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState("");
+  const [passwordResetError, setPasswordResetError] = useState("");
+
+  // Fetch latest settings, current user, and team users on mount
   useEffect(() => {
     let isMounted = true;
 
+    // Load store settings
     fetch("/api/settings")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: StoreSettings | null) => {
@@ -55,6 +99,29 @@ export default function SettingsPage() {
       .catch((err) => {
         console.warn("Could not load server settings, using local copy:", err);
       });
+
+    // Load current authenticated user profile
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((userData: CurrentUserProfile | null) => {
+        if (!isMounted || !userData) return;
+        setCurrentUser(userData);
+        try {
+          localStorage.setItem("pos_current_user", JSON.stringify(userData));
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {});
+
+    // Load team users list for password management
+    fetch("/api/users")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((usersData: TeamUser[]) => {
+        if (!isMounted || !Array.isArray(usersData)) return;
+        setTeamUsers(usersData);
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -111,13 +178,117 @@ export default function SettingsPage() {
       }, 4000);
     } catch (err) {
       console.error("Failed to save settings to server:", err);
-      // It's still saved locally in localStorage
+      // Still saved locally
       setSavedNotice(true);
       setTimeout(() => {
         setSavedNotice(false);
       }, 4000);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  // Password reset logic
+  const isSelfAccount =
+    selectedUserId === "me" || (currentUser && selectedUserId === currentUser.id);
+
+  const selectedStaff = teamUsers.find(
+    (u) => (u.userId || u.id) === selectedUserId
+  );
+  const selectedStaffName = selectedStaff?.values?.[0] || "staff member";
+
+  // Calculate password strength indicator
+  const strengthScore = (() => {
+    if (!newPassword) return 0;
+    if (newPassword.length < 6) return 1;
+    let score = 2;
+    if (
+      newPassword.length >= 8 &&
+      /[A-Z]/.test(newPassword) &&
+      /[0-9!@#$%^&*]/.test(newPassword)
+    ) {
+      score = 3;
+    }
+    return score;
+  })();
+
+  const strengthLabel = (() => {
+    if (strengthScore === 1) return "Too short (min 6 chars)";
+    if (strengthScore === 2) return "Good password";
+    if (strengthScore === 3) return "Strong password";
+    return "";
+  })();
+
+  const passwordsMatch =
+    newPassword.length > 0 &&
+    confirmPassword.length > 0 &&
+    newPassword === confirmPassword;
+
+  function handleClearPasswordFields() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordResetError("");
+  }
+
+  async function handleResetPassword(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setPasswordResetError("");
+    setPasswordResetSuccess("");
+
+    if (!newPassword) {
+      setPasswordResetError("Please enter a new password");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordResetError("Password must be at least 6 characters long");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordResetError("Passwords do not match");
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    try {
+      const targetId = selectedUserId === "me" ? "me" : selectedUserId;
+      const payload: { password: string; currentPassword?: string } = {
+        password: newPassword,
+      };
+
+      if (isSelfAccount && currentPassword.trim()) {
+        payload.currentPassword = currentPassword.trim();
+      }
+
+      const res = await fetch(`/api/users/${targetId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reset password");
+      }
+
+      const displayName = isSelfAccount
+        ? currentUser?.name || "your account"
+        : selectedStaffName;
+
+      setPasswordResetSuccess(`Password for ${displayName} was updated successfully!`);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setTimeout(() => {
+        setPasswordResetSuccess("");
+      }, 6000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reset password";
+      setPasswordResetError(message);
+    } finally {
+      setIsResettingPassword(false);
     }
   }
 
@@ -130,7 +301,7 @@ export default function SettingsPage() {
               <ShieldCheck size={14} /> Workspace controls
             </div>
             <h1>Store Settings</h1>
-            <p>Configure store details, accepted tender types, and alert preferences.</p>
+            <p>Configure store details, security credentials, accepted tenders, and alerts.</p>
           </div>
           <button
             type="button"
@@ -162,7 +333,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <form onSubmit={handleSave} className="settings-grid">
+        <div className="settings-grid">
           {/* Store Profile Card */}
           <section className="panel settings-card">
             <div className="settings-icon blue">
@@ -220,6 +391,274 @@ export default function SettingsPage() {
             </label>
           </section>
 
+          {/* Account Security & Password Reset Card */}
+          <section className="panel settings-card" id="security-reset-password">
+            <div className="settings-icon purple">
+              <KeyRound size={20} />
+            </div>
+            <div>
+              <h2>Account Security & Password Reset</h2>
+              <p>Update your login password or reset access credentials for staff.</p>
+            </div>
+
+            {passwordResetSuccess && (
+              <div
+                className="inline-notice"
+                style={{
+                  background: "var(--status-green-bg)",
+                  color: "var(--status-green)",
+                  borderColor: "var(--status-green-border)",
+                  margin: 0,
+                }}
+              >
+                <Check size={16} /> {passwordResetSuccess}
+              </div>
+            )}
+
+            {passwordResetError && (
+              <div
+                className="inline-notice"
+                style={{
+                  background: "var(--status-red-bg)",
+                  color: "var(--status-red)",
+                  borderColor: "var(--status-red-border)",
+                  margin: 0,
+                }}
+              >
+                <AlertCircle size={16} /> {passwordResetError}
+              </div>
+            )}
+
+            <label>
+              Target account
+              <select
+                value={selectedUserId}
+                onChange={(e) => {
+                  setSelectedUserId(e.target.value);
+                  setPasswordResetError("");
+                  setPasswordResetSuccess("");
+                }}
+              >
+                <option value="me">
+                  My Account ({currentUser?.name || "Active Session"} · {currentUser?.role || "Owner"})
+                </option>
+                {teamUsers.map((u) => {
+                  const uid = u.userId || u.id;
+                  if (currentUser && uid === currentUser.id) return null;
+                  return (
+                    <option key={uid} value={uid}>
+                      {u.values[0]} ({u.values[2]} · {u.values[1]})
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+
+            <div>
+              <span className={`account-context-badge ${isSelfAccount ? "blue" : "purple"}`}>
+                {isSelfAccount ? <ShieldCheck size={13} /> : <Users size={13} />}
+                {isSelfAccount
+                  ? "Updating your active session password"
+                  : `Admin credential reset for ${selectedStaffName}`}
+              </span>
+            </div>
+
+            {isSelfAccount && (
+              <label>
+                Current password (optional verification)
+                <div className="settings-password-field">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password if known"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="settings-password-toggle"
+                    onClick={() => setShowCurrentPassword((prev) => !prev)}
+                    title={showCurrentPassword ? "Hide password" : "Show password"}
+                    aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                  >
+                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+
+            <label>
+              New password
+              <div className="settings-password-field">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="settings-password-toggle"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  title={showNewPassword ? "Hide password" : "Show password"}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {newPassword && (
+                <div style={{ marginTop: "4px" }}>
+                  <div className="password-strength-bar">
+                    <div
+                      className={`strength-segment ${
+                        strengthScore >= 1
+                          ? strengthScore === 1
+                            ? "active-weak"
+                            : strengthScore === 2
+                            ? "active-medium"
+                            : "active-strong"
+                          : ""
+                      }`}
+                    />
+                    <div
+                      className={`strength-segment ${
+                        strengthScore >= 2
+                          ? strengthScore === 2
+                            ? "active-medium"
+                            : "active-strong"
+                          : ""
+                      }`}
+                    />
+                    <div
+                      className={`strength-segment ${
+                        strengthScore >= 3 ? "active-strong" : ""
+                      }`}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginTop: "4px",
+                      fontSize: "11px",
+                      color: "var(--ink-muted)",
+                    }}
+                  >
+                    <span>{strengthLabel}</span>
+                    <span>{newPassword.length} characters</span>
+                  </div>
+                </div>
+              )}
+            </label>
+
+            <label>
+              Confirm new password
+              <div className="settings-password-field">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="settings-password-toggle"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {confirmPassword && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginTop: "4px",
+                    fontSize: "11.5px",
+                  }}
+                >
+                  {passwordsMatch ? (
+                    <span
+                      style={{
+                        color: "var(--status-green)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Check size={13} /> Passwords match
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        color: "var(--status-red)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <AlertCircle size={13} /> Passwords do not match
+                    </span>
+                  )}
+                </div>
+              )}
+            </label>
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleResetPassword}
+                disabled={
+                  isResettingPassword ||
+                  !newPassword ||
+                  newPassword.length < 6 ||
+                  newPassword !== confirmPassword
+                }
+                style={{ flex: 1, justifyContent: "center" }}
+              >
+                {isResettingPassword ? (
+                  <Loader2 size={16} className="spin" />
+                ) : (
+                  <KeyRound size={16} />
+                )}
+                {isResettingPassword ? "Updating password..." : "Reset password"}
+              </button>
+              {(newPassword || confirmPassword || currentPassword) && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleClearPasswordFields}
+                  disabled={isResettingPassword}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--border-subtle)" }}>
+              <Link
+                href="/team"
+                className="text-link"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                  color: "var(--brand-primary)",
+                  textDecoration: "none",
+                }}
+              >
+                <Users size={14} /> Manage staff access & roles in Team & Permissions &rarr;
+              </Link>
+            </div>
+          </section>
+
           {/* Catalog Taxonomy & Brand Configuration Card */}
           <section className="panel settings-card">
             <div className="settings-icon blue">
@@ -229,7 +668,15 @@ export default function SettingsPage() {
               <h2>Catalog Taxonomy & Brand Configuration</h2>
               <p>Configure product categories, department hierarchies, and brand designations.</p>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "8px" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                width: "100%",
+                marginTop: "8px",
+              }}
+            >
               <div
                 style={{
                   display: "flex",
@@ -242,7 +689,9 @@ export default function SettingsPage() {
                 }}
               >
                 <div>
-                  <strong style={{ display: "block", fontSize: "13.5px" }}>Product Categories</strong>
+                  <strong style={{ display: "block", fontSize: "13.5px" }}>
+                    Product Categories
+                  </strong>
                   <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
                     Organize catalog departments, subcategories, and stock groups
                   </span>
@@ -250,7 +699,12 @@ export default function SettingsPage() {
                 <Link
                   href="/categories"
                   className="secondary-button"
-                  style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
                 >
                   <FolderTree size={14} /> Configure Categories
                 </Link>
@@ -276,7 +730,12 @@ export default function SettingsPage() {
                 <Link
                   href="/brands"
                   className="secondary-button"
-                  style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
                 >
                   <Award size={14} /> Configure Brands
                 </Link>
@@ -380,7 +839,7 @@ export default function SettingsPage() {
               />
             </label>
           </section>
-        </form>
+        </div>
       </div>
     </AppShell>
   );
