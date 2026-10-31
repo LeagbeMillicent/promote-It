@@ -55,13 +55,52 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id?: string; name?: string; email?: string; role?: string } | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("pos_current_user");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  });
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.name) {
+          setCurrentUser(data);
+          try {
+            localStorage.setItem("pos_current_user", JSON.stringify(data));
+          } catch {
+            // ignore
+          }
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/sales")
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setSalesCount(Array.isArray(data) ? data.length : 0))
       .catch(() => setSalesCount(0));
   }, []);
+
+  const userName = currentUser?.name || "User";
+  const userRole = currentUser?.role
+    ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1).toLowerCase()
+    : "Owner";
+  const userInitials = currentUser?.name
+    ? currentUser.name
+        .split(" ")
+        .filter(Boolean)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : (userName && userName !== "User" ? userName.charAt(0).toUpperCase() : "U");
 
   function closeAllDropdowns() {
     setNotificationsOpen(false);
@@ -81,6 +120,9 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
     setIsLoggingOut(true);
     try {
       await fetch("/api/logout", { method: "POST" });
+    } catch {}
+    try {
+      localStorage.removeItem("pos_current_user");
     } catch {}
     router.push("/login");
     router.refresh();
@@ -167,10 +209,10 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-avatar">KO</div>
+          <div className="user-avatar" suppressHydrationWarning>{userInitials}</div>
           <div>
-            <strong>Kofi Owusu</strong>
-            <span>Owner account</span>
+            <strong suppressHydrationWarning>{userName}</strong>
+            <span suppressHydrationWarning>{userRole} account</span>
           </div>
           <button className="icon-button" onClick={handleLogout} title="Log out">
             <LogOut size={18} />
@@ -258,7 +300,7 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
               tabIndex={0}
               aria-expanded={profileOpen}
             >
-              <div className="user-avatar small">KO</div>
+              <div className="user-avatar small" suppressHydrationWarning>{userInitials}</div>
               <ChevronDown size={14} />
               {profileOpen && (
                 <div
@@ -266,8 +308,8 @@ export function AppShell({ children, active = "" }: { children: React.ReactNode;
                   onClick={(event) => event.stopPropagation()}
                 >
                   <div className="dropdown-header">
-                    <strong>Kofi Owusu</strong>
-                    <span>Owner account · Accra</span>
+                    <strong suppressHydrationWarning>{userName}</strong>
+                    <span suppressHydrationWarning>{userRole} account · Accra</span>
                   </div>
                   <Link href="/team" className="dropdown-item">
                     <Users size={16} /> Team & permissions

@@ -105,7 +105,7 @@ export default function RegisterPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Kofi Owusu"
+                  placeholder="Enter full name"
                   required
                 />
               </div>
@@ -119,7 +119,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="kofi@promoteit.ventures"
+                  placeholder="you@promoteit.ventures"
                   required
                 />
               </div>

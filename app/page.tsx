@@ -44,7 +44,25 @@ type ProductRecord = {
   tone: string;
 };
 
+type CurrentUserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export default function DashboardPage() {
+  const [currentUser, setCurrentUser] = useState<CurrentUserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("pos_current_user");
+        if (cached) return JSON.parse(cached);
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  });
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,10 +167,19 @@ export default function DashboardPage() {
     Promise.all([
       fetch("/api/sales").then((res) => (res.ok ? res.json() : [])),
       fetch("/api/products").then((res) => (res.ok ? res.json() : [])),
+      fetch("/api/auth/me").then((res) => (res.ok ? res.json() : null)),
     ])
-      .then(([salesData, productsData]) => {
+      .then(([salesData, productsData, userData]) => {
         setSales(Array.isArray(salesData) ? salesData : []);
         setProducts(Array.isArray(productsData) ? productsData : []);
+        if (userData && userData.name) {
+          setCurrentUser(userData);
+          try {
+            localStorage.setItem("pos_current_user", JSON.stringify(userData));
+          } catch {
+            // ignore
+          }
+        }
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -343,7 +370,9 @@ export default function DashboardPage() {
 
         <section className="page-heading">
           <div>
-            <h1>{greeting()}, Kofi</h1>
+            <h1 suppressHydrationWarning>
+              {greeting()}{currentUser?.name ? `, ${currentUser.name}` : ""}
+            </h1>
             <p>
               {todayFormatted} · Adenta-Accountancy, Accra
             </p>
