@@ -28,9 +28,52 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await db.user.update({ where: { id }, data: { status: "INACTIVE" } });
+    const user = await db.user.findUnique({ where: { id } });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    await db.$transaction(async (tx) => {
+      // Detach sales
+      await tx.sale.updateMany({
+        where: { cashierId: id },
+        data: { cashierId: null as any },
+      });
+
+      // Detach purchases
+      await tx.purchase.updateMany({
+        where: { createdById: id },
+        data: { createdById: null as any },
+      });
+
+      // Detach inventory movements
+      await tx.inventoryMovement.updateMany({
+        where: { userId: id },
+        data: { userId: null as any },
+      });
+
+      // Detach returns
+      await tx.return.updateMany({
+        where: { processedById: id },
+        data: { processedById: null as any },
+      });
+
+      // Detach expenses
+      await tx.expense.updateMany({
+        where: { createdById: id },
+        data: { createdById: null as any },
+      });
+
+      // Detach audit logs
+      await tx.auditLog.updateMany({
+        where: { userId: id },
+        data: { userId: null as any },
+      });
+
+      // Hard delete the user
+      await tx.user.delete({ where: { id } });
+    });
+
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "User could not be deactivated" }, { status: 400 });
+  } catch (error) {
+    return formatErrorResponse(error, "User could not be deleted");
   }
 }

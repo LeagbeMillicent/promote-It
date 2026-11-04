@@ -25,7 +25,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params;
     await db.expense.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Expense could not be deleted" }, { status: 400 });
+  } catch (error) {
+    return formatErrorResponse(error, "Expense could not be deleted");
   }
 }

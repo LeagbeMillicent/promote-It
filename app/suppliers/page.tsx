@@ -180,37 +180,39 @@ export default function SuppliersPage() {
     loadSuppliers();
   }
 
-  const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isDeletingSupplier, setIsDeletingSupplier] = useState(false);
+  const [deleteSupplierError, setDeleteSupplierError] = useState<string | null>(null);
 
-  function deleteSupplier() {
-    if (!selectedSupplier) return;
-    setDeactivateError(null);
-    setConfirmDeactivateOpen(true);
+  function deleteSupplier(supplier?: SupplierRow) {
+    const target = supplier || selectedSupplier;
+    if (!target) return;
+    if (supplier) setSelectedSupplier(supplier);
+    setDeleteSupplierError(null);
+    setConfirmDeleteOpen(true);
   }
 
-  async function confirmDeactivateSupplier() {
+  async function confirmDeleteSupplier() {
     if (!selectedSupplier) return;
-    setIsDeactivating(true);
-    setDeactivateError(null);
+    setIsDeletingSupplier(true);
+    setDeleteSupplierError(null);
     try {
       const res = await fetch(`/api/suppliers?id=${encodeURIComponent(selectedSupplier.id)}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) {
-        setDeactivateError(data.error || "Supplier could not be deactivated");
-        setIsDeactivating(false);
+        setDeleteSupplierError(data.error || "Supplier could not be deleted");
+        setIsDeletingSupplier(false);
         return;
       }
-      setIsDeactivating(false);
-      setConfirmDeactivateOpen(false);
+      setIsDeletingSupplier(false);
+      setConfirmDeleteOpen(false);
       setModalMode(null);
       loadSuppliers();
     } catch {
-      setDeactivateError("Network error while deactivating supplier");
-      setIsDeactivating(false);
+      setDeleteSupplierError("Network error while deleting supplier");
+      setIsDeletingSupplier(false);
     }
   }
 
@@ -460,6 +462,13 @@ export default function SuppliersPage() {
                           >
                             <Edit3 size={15} />
                           </button>
+                          <button
+                            className="icon-button action-delete"
+                            onClick={() => deleteSupplier(supplier)}
+                            title={`Delete ${supplier.name}`}
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -564,8 +573,8 @@ export default function SuppliersPage() {
               </div>
               <div className="modal-footer">
                 {modalMode === "edit" && (
-                  <button type="button" className="danger-button" onClick={deleteSupplier}>
-                    <Trash2 size={15} /> Deactivate
+                  <button type="button" className="danger-button" onClick={() => deleteSupplier()}>
+                    <Trash2 size={15} /> Delete supplier
                   </button>
                 )}
                 <span className="modal-footer-spacer" />
@@ -586,12 +595,12 @@ export default function SuppliersPage() {
       )}
 
       <ConfirmModal
-        isOpen={confirmDeactivateOpen}
-        title="Deactivate Supplier"
+        isOpen={confirmDeleteOpen}
+        title="Delete Supplier"
         subtitle="Procurement Network"
         description={
           <span>
-            Are you sure you want to deactivate supplier <strong>{selectedSupplier?.name}</strong>?
+            Are you sure you want to permanently delete supplier <strong>{selectedSupplier?.name}</strong>? Any purchases linked to this supplier will be detached. This action cannot be undone.
           </span>
         }
         itemDetails={
@@ -604,15 +613,15 @@ export default function SuppliersPage() {
               ]
             : []
         }
-        confirmLabel="Deactivate Supplier"
-        variant="warning"
-        isLoading={isDeactivating}
-        error={deactivateError}
-        onConfirm={confirmDeactivateSupplier}
+        confirmLabel="Delete Supplier"
+        variant="danger"
+        isLoading={isDeletingSupplier}
+        error={deleteSupplierError}
+        onConfirm={confirmDeleteSupplier}
         onClose={() => {
-          if (!isDeactivating) {
-            setConfirmDeactivateOpen(false);
-            setDeactivateError(null);
+          if (!isDeletingSupplier) {
+            setConfirmDeleteOpen(false);
+            setDeleteSupplierError(null);
           }
         }}
       />

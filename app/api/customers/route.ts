@@ -117,7 +117,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });
     }
 
-    await db.customer.delete({ where: { id } });
+    await db.$transaction(async (tx) => {
+      // Detach any sales linked to this customer
+      await tx.sale.updateMany({
+        where: { customerId: id },
+        data: { customerId: null as any },
+      });
+
+      // Hard delete customer
+      await tx.customer.delete({ where: { id } });
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     return formatErrorResponse(error, "Customer could not be deleted");

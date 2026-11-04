@@ -484,7 +484,7 @@ export default function CategoriesPage() {
         isOpen={!!deleteTarget}
         title={
           (deleteTarget?._count?.products ?? 0) > 0
-            ? "Cannot Delete Category"
+            ? "Detach Products & Delete Category"
             : "Delete Category"
         }
         subtitle="Catalog Configuration"
@@ -492,8 +492,7 @@ export default function CategoriesPage() {
           (deleteTarget?._count?.products ?? 0) > 0 ? (
             <span>
               The category <strong>{deleteTarget?.name}</strong> has{" "}
-              <strong>{deleteTarget?._count?.products} assigned product(s)</strong>. To protect catalog integrity,
-              please reassign these products to another category before deleting.
+              <strong>{deleteTarget?._count?.products} assigned product(s)</strong>. Deleting it will detach these products (they will become uncategorized) and permanently delete this category.
             </span>
           ) : (
             <span>
@@ -515,41 +514,19 @@ export default function CategoriesPage() {
         }
         confirmLabel={
           (deleteTarget?._count?.products ?? 0) > 0
-            ? "Close Notice"
+            ? "Detach & Delete Category"
             : "Delete Category"
         }
-        variant={
-          (deleteTarget?._count?.products ?? 0) > 0
-            ? "warning"
-            : "danger"
-        }
+        variant="danger"
         isLoading={isDeleting}
         error={deleteError}
-        onConfirm={
-          (deleteTarget?._count?.products ?? 0) > 0
-            ? () => {
-                setDeleteTarget(null);
-                setDeleteError(null);
-              }
-            : confirmDeleteCategory
-        }
+        onConfirm={confirmDeleteCategory}
         onClose={() => {
           if (!isDeleting) {
             setDeleteTarget(null);
             setDeleteError(null);
           }
         }}
-        secondaryAction={
-          (deleteTarget?._count?.products ?? 0) > 0
-            ? {
-                label: "View Products in Catalog",
-                variant: "secondary",
-                onClick: () => {
-                  window.location.href = `/products`;
-                },
-              }
-            : undefined
-        }
       />
     </AppShell>
   );

@@ -355,7 +355,7 @@ export default function ProductsPage() {
         description={
           <span>
             Are you sure you want to permanently delete{" "}
-            <strong>{deleteTarget?.values[0] || deleteTarget?.id}</strong>?
+            <strong>{deleteTarget?.values[0] || deleteTarget?.id}</strong>? Any linked purchase or sale items will be safely detached and inventory logs will be deleted. This action cannot be undone.
           </span>
         }
         itemDetails={

@@ -13,6 +13,7 @@ export async function receivePurchase(purchaseId: string, userId: string) {
     if (purchase.status !== "DRAFT") throw new Error("Only draft purchases can be received");
 
     for (const item of purchase.items) {
+      if (!item.productVariantId) continue;
       await applyInventoryChange(transaction, {
         productVariantId: item.productVariantId,
         locationId: purchase.locationId,

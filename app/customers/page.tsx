@@ -258,7 +258,7 @@ export default function CustomersPage() {
         subtitle="Customer Directory"
         description={
           <span>
-            Are you sure you want to delete customer <strong>{deleteTarget?.name}</strong>?
+            Are you sure you want to permanently delete customer <strong>{deleteTarget?.name}</strong>? Any sales orders linked to this customer will be detached. This action cannot be undone.
           </span>
         }
         itemDetails={

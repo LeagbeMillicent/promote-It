@@ -79,7 +79,7 @@ export async function GET(request: Request) {
       return {
         variantId: variant.id,
         productId: variant.productId,
-        categoryId: variant.product.categoryId,
+        categoryId: variant.product.categoryId ?? undefined,
         brandId: variant.product.brandId ?? undefined,
         costPrice: Number(variant.costPrice),
         sellingPrice: Number(variant.sellingPrice),
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
         id: `PRD-${variant.id.replaceAll("-", "").slice(-8).toUpperCase()}`,
         values: [
           variant.name,
-          variant.product.category.name,
+          variant.product.category?.name ?? "Uncategorized",
           variant.product.brand?.name ?? "Unbranded",
           variant.sku,
           `GHS ${Number(variant.sellingPrice).toLocaleString("en-GH", { minimumFractionDigits: 2 })}`,

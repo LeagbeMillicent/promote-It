@@ -98,61 +98,33 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const unassign = searchParams.get("unassign") === "true";
 
     const brand = await db.brand.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: { products: true },
-        },
-      },
     });
 
     if (!brand) {
       return NextResponse.json({ error: "Brand not found" }, { status: 404 });
     }
 
-    if (brand._count.products > 0) {
-      if (!unassign) {
-        return NextResponse.json(
-          {
-            error: `Cannot delete brand "${brand.name}" because ${brand._count.products} product(s) are assigned to it. Please reassign them or confirm unassigning them.`,
-            productsCount: brand._count.products,
-          },
-          { status: 400 }
-        );
-      }
-
-      // If unassign is true, unassign all products and delete in transaction
-      await db.$transaction(async (tx) => {
-        await tx.product.updateMany({
-          where: { brandId: id },
-          data: { brandId: null },
-        });
-        await tx.brand.delete({
-          where: { id },
-        });
+    await db.$transaction(async (tx) => {
+      // Detach any products assigned to this brand
+      await tx.product.updateMany({
+        where: { brandId: id },
+        data: { brandId: null as any },
       });
 
-      return NextResponse.json({
-        ok: true,
-        id,
-        name: brand.name,
-        unassignedProducts: brand._count.products,
+      // Hard delete the brand
+      await tx.brand.delete({
+        where: { id },
       });
-    }
-
-    await db.brand.delete({
-      where: { id },
     });
 
     return NextResponse.json({ ok: true, id, name: brand.name });
   } catch (error) {
     return formatErrorResponse(
       error,
-      "This brand is referenced by existing catalog items and cannot be deleted."
+      "Brand could not be deleted"
     );
   }
 }

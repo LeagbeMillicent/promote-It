@@ -67,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({
       variantId: variant.id,
       productId: variant.productId,
-      categoryId: variant.product.categoryId,
+      categoryId: variant.product.categoryId ?? undefined,
       brandId: variant.product.brandId ?? undefined,
       costPrice: Number(variant.costPrice),
       sellingPrice: Number(variant.sellingPrice),
@@ -76,7 +76,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       id: `PRD-${variant.id.replaceAll("-", "").slice(-8).toUpperCase()}`,
       values: [
         variant.name,
-        variant.product.category.name,
+        variant.product.category?.name ?? "Uncategorized",
         variant.product.brand?.name ?? "Unbranded",
         variant.sku,
         `GHS ${Number(variant.sellingPrice).toLocaleString("en-GH", { minimumFractionDigits: 2 })}`,
@@ -103,12 +103,49 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       },
     });
     if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    await db.productVariant.delete({ where: { id: existing.id } });
+
+    await db.$transaction(async (tx) => {
+      // Detach from SaleItem
+      await tx.saleItem.updateMany({
+        where: { productVariantId: existing.id },
+        data: { productVariantId: null as any },
+      });
+
+      // Detach from PurchaseItem
+      await tx.purchaseItem.updateMany({
+        where: { productVariantId: existing.id },
+        data: { productVariantId: null as any },
+      });
+
+      // Detach from ReturnItem
+      await tx.returnItem.updateMany({
+        where: { productVariantId: existing.id },
+        data: { productVariantId: null as any },
+      });
+
+      // Delete inventory movements associated with this variant
+      await tx.inventoryMovement.deleteMany({
+        where: { productVariantId: existing.id },
+      });
+
+      // Delete the product variant
+      await tx.productVariant.delete({
+        where: { id: existing.id },
+      });
+
+      // If the parent product has no more variants, delete the parent product as well
+      const remainingVariants = await tx.productVariant.count({
+        where: { productId: existing.productId },
+      });
+      if (remainingVariants === 0) {
+        await tx.product.delete({
+          where: { id: existing.productId },
+        });
+      }
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return formatErrorResponse(
-      error,
-      "This product is referenced by sales, purchases, or inventory movements and cannot be deleted. Deactivate it instead."
-    );
+    return formatErrorResponse(error, "Product could not be deleted");
   }
 }

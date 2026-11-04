@@ -13,6 +13,7 @@ import {
   Receipt,
   Search,
   ShoppingCart,
+  Trash2,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -112,6 +113,40 @@ export default function SalesPage() {
   const [notice, setNotice] = useState("");
   const [viewingReceipt, setViewingReceipt] = useState<ReceiptData | null>(null);
   const [viewingSale, setViewingSale] = useState<SaleRow | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<SaleRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function handleDeleteSale(sale: SaleRow | SaleDetailData) {
+    const row = rows.find((r) => r.id === sale.id || r.saleId === sale.id || (sale.saleId && r.saleId === sale.saleId)) || (sale as SaleRow);
+    setDeleteError(null);
+    setDeleteTarget(row);
+  }
+
+  async function confirmDeleteSale() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/sales/${deleteTarget.saleId || deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteError(data.error || "Failed to delete sale");
+        setIsDeleting(false);
+        return;
+      }
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setViewingSale(null);
+      loadSales();
+    } catch {
+      setDeleteError("Network error while deleting sale");
+      setIsDeleting(false);
+    }
+  }
 
   const weekDays = useMemo(() => getCurrentWeekDays(), []);
   const todayStr = useMemo(() => getTodayDateString(), []);
@@ -870,7 +905,8 @@ export default function SalesPage() {
                           {(row.status || "Paid").toLowerCase() === "paid" ? (
                             <button
                               type="button"
-                              className="icon-button action-delete"
+                              className="icon-button"
+                              style={{ color: "var(--status-orange)" }}
                               onClick={() => toggleSaleStatus(row)}
                               title="Mark sale as Not Paid"
                             >
@@ -887,6 +923,14 @@ export default function SalesPage() {
                               <CheckCircle2 size={15} />
                             </button>
                           )}
+                          <button
+                            type="button"
+                            className="icon-button action-delete"
+                            onClick={() => handleDeleteSale(row)}
+                            title="Delete sale permanently"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -937,6 +981,7 @@ export default function SalesPage() {
             setViewingSale(null);
             openReceipt(sale);
           }}
+          onDelete={handleDeleteSale}
         />
       )}
 
@@ -947,6 +992,39 @@ export default function SalesPage() {
           onClose={() => setViewingReceipt(null)}
         />
       )}
+
+      {/* Delete Sale Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete Sale Record"
+        subtitle="Ledger & Cash Flow"
+        variant="danger"
+        confirmLabel="Delete Sale"
+        description={
+          <span>
+            Are you sure you want to permanently delete sale transaction <strong>{deleteTarget?.id}</strong>? Any associated payments, returns, and inventory logs will be deleted. This action cannot be undone.
+          </span>
+        }
+        itemDetails={
+          deleteTarget
+            ? [
+                { label: "Sale Number", value: deleteTarget.id },
+                { label: "Customer", value: deleteTarget.customerName || (Array.isArray(deleteTarget.values) ? deleteTarget.values[0] : "Walk-in") },
+                { label: "Amount", value: Array.isArray(deleteTarget.values) ? deleteTarget.values[1] : `GHS ${Number(deleteTarget.total).toFixed(2)}` },
+                { label: "Status", value: deleteTarget.status || "Paid" },
+              ]
+            : []
+        }
+        isLoading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDeleteSale}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      />
 
       {/* Sale Status Confirmation Modal */}
       <ConfirmModal

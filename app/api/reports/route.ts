@@ -3,30 +3,48 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get("range") || "30d";
+
+    const now = new Date();
+    let startDate = new Date();
+    if (range === "7d") {
+      startDate.setDate(now.getDate() - 7);
+    } else if (range === "30d") {
+      startDate.setDate(now.getDate() - 30);
+    } else if (range === "90d") {
+      startDate.setDate(now.getDate() - 90);
+    } else if (range === "1y") {
+      startDate.setFullYear(now.getFullYear() - 1);
+    } else {
+      startDate.setDate(now.getDate() - 30);
+    }
+
     const [sales, expenses, categories, variants] = await Promise.all([
       db.sale.findMany({
-        where: { status: "COMPLETED" },
+        where: {
+          createdAt: { gte: startDate },
+          status: "COMPLETED",
+        },
         include: {
           items: {
             include: {
               productVariant: {
-                include: {
-                  product: true,
-                },
+                include: { product: true },
               },
             },
           },
           payments: true,
         },
-        orderBy: { createdAt: "asc" },
       }),
       db.expense.findMany({
-        orderBy: { createdAt: "asc" },
+        where: {
+          createdAt: { gte: startDate },
+        },
       }),
       db.category.findMany({
-        orderBy: { name: "asc" },
         include: {
           products: {
             include: {
@@ -36,29 +54,31 @@ export async function GET() {
         },
       }),
       db.productVariant.findMany({
-        include: { product: true },
+        include: {
+          product: true,
+        },
       }),
     ]);
 
     let totalRevenue = 0;
     let totalCost = 0;
-    const paymentMethodsMap: Record<string, number> = {
-      Cash: 0,
-      "Mobile Money": 0,
-      Card: 0,
-      "Bank Transfer": 0,
-      Other: 0,
-    };
+    const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
 
+    // Grouping by date for line/bar charts
     const dailyMap: Record<string, { date: string; revenue: number; expenses: number; profit: number }> = {};
-    const productSalesMap: Record<string, { name: string; sku: string; unitsSold: number; revenue: number }> = {};
-
-    // Initialize last 7 days in dailyMap
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+    const curr = new Date(startDate);
+    while (curr <= now) {
+      const key = curr.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
       dailyMap[key] = { date: key, revenue: 0, expenses: 0, profit: 0 };
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    // Process expenses
+    for (const exp of expenses) {
+      const key = exp.createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      if (dailyMap[key]) {
+        dailyMap[key].expenses += Number(exp.amount || 0);
+      }
     }
 
     // Initialize Category breakdown
@@ -78,15 +98,15 @@ export async function GET() {
     > = {};
 
     for (const cat of categories) {
+      let variantCount = 0;
       let totalItems = 0;
       let totalAmount = 0;
       let totalCostAmount = 0;
-      let variantCount = 0;
 
       for (const prod of cat.products) {
         variantCount += prod.variants.length;
         for (const variant of prod.variants) {
-          const stock = Number(variant.stock || 0);
+          const stock = variant.stock;
           const sellPrice = Number(variant.sellingPrice || 0);
           const costPrice = Number(variant.costPrice || 0);
           totalItems += stock;
@@ -108,6 +128,15 @@ export async function GET() {
       };
     }
 
+    const productSalesMap: Record<string, { name: string; sku: string; unitsSold: number; revenue: number }> = {};
+    const paymentMethodsMap: Record<string, number> = {
+      Cash: 0,
+      "Mobile Money": 0,
+      Card: 0,
+      "Bank Transfer": 0,
+      Other: 0,
+    };
+
     // Process sales
     for (const sale of sales) {
       const amount = Number(sale.total || 0);
@@ -122,7 +151,7 @@ export async function GET() {
         const itemCost = Number(item.unitCost || 0) * item.quantity;
         totalCost += itemCost;
 
-        const prodId = item.productVariantId;
+        const prodId = item.productVariantId || "detached";
         const prodName = item.productVariant?.name || "Product";
         const prodSku = item.productVariant?.sku || "SKU-N/A";
         if (!productSalesMap[prodId]) {
@@ -154,19 +183,8 @@ export async function GET() {
       }
     }
 
-    // Process expenses
-    let totalExpenses = 0;
-    for (const expense of expenses) {
-      const amount = Number(expense.amount || 0);
-      totalExpenses += amount;
+    const dailyTrends = Object.values(dailyMap).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      const dateKey = expense.createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-      if (dailyMap[dateKey]) {
-        dailyMap[dateKey].expenses += amount;
-      }
-    }
-
-    // Calculate daily profits
     Object.values(dailyMap).forEach((day) => {
       day.profit = Math.max(0, day.revenue - day.expenses);
     });
@@ -208,18 +226,17 @@ export async function GET() {
         netProfit,
         transactionsCount,
         averageOrderValue,
-        lowStockCount,
-        totalInventoryItems,
         totalInventoryValue,
-        totalCategories: categories.length,
+        totalInventoryItems,
+        lowStockCount,
       },
-      dailyTrends: Object.values(dailyMap),
+      dailyTrends,
       paymentBreakdown,
-      topProducts,
       categoryBreakdown,
+      topProducts,
     });
   } catch (error) {
-    console.error("GET /api/reports error:", error);
-    return NextResponse.json({ error: "Report data is unavailable" }, { status: 503 });
+    console.error("GET /api/reports failed", error);
+    return NextResponse.json({ error: "Failed to generate business intelligence metrics" }, { status: 500 });
   }
 }

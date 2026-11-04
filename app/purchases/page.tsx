@@ -21,9 +21,9 @@ export default function PurchasesPage() {
   const [isReceiving, setIsReceiving] = useState(false);
   const [receiveError, setReceiveError] = useState<string | null>(null);
 
-  const [cancelTarget, setCancelTarget] = useState<PurchaseRow | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PurchaseRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function loadPurchases() {
     fetch("/api/purchases")
@@ -66,31 +66,31 @@ export default function PurchasesPage() {
     }
   }
 
-  function cancelPurchase(row: PurchaseRow) {
-    setCancelError(null);
-    setCancelTarget(row);
+  function deletePurchase(row: PurchaseRow) {
+    setDeleteError(null);
+    setDeleteTarget(row);
   }
 
-  async function confirmCancelPurchase() {
-    if (!cancelTarget) return;
-    setIsCancelling(true);
-    setCancelError(null);
+  async function confirmDeletePurchase() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
-      const res = await fetch(`/api/purchases/${cancelTarget.purchaseId || cancelTarget.id}`, {
+      const res = await fetch(`/api/purchases/${deleteTarget.purchaseId || deleteTarget.id}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) {
-        setCancelError(data.error || "Failed to cancel purchase order");
-        setIsCancelling(false);
+        setDeleteError(data.error || "Failed to delete purchase order");
+        setIsDeleting(false);
         return;
       }
-      setIsCancelling(false);
-      setCancelTarget(null);
+      setIsDeleting(false);
+      setDeleteTarget(null);
       loadPurchases();
     } catch {
-      setCancelError("Network error while cancelling purchase order");
-      setIsCancelling(false);
+      setDeleteError("Network error while deleting purchase order");
+      setIsDeleting(false);
     }
   }
 
@@ -227,8 +227,8 @@ export default function PurchasesPage() {
               )}
               <button
                 className="icon-button action-delete"
-                onClick={() => cancelPurchase(row)}
-                title="Cancel purchase order"
+                onClick={() => deletePurchase(row)}
+                title="Delete purchase order"
               >
                 <Trash2 size={15} />
               </button>
@@ -290,35 +290,35 @@ export default function PurchasesPage() {
         }}
       />
 
-      {/* Cancel Purchase Confirmation Modal */}
+      {/* Delete Purchase Confirmation Modal */}
       <ConfirmModal
-        isOpen={!!cancelTarget}
-        title="Cancel Purchase Order"
+        isOpen={!!deleteTarget}
+        title="Delete Purchase Order"
         subtitle="Procurement"
         variant="danger"
         description={
           <span>
-            Are you sure you want to cancel purchase order <strong>{cancelTarget?.id}</strong>?
+            Are you sure you want to permanently delete purchase order <strong>{deleteTarget?.id}</strong>? Any associated purchase items and inventory logs will be deleted. This action cannot be undone.
           </span>
         }
         itemDetails={
-          cancelTarget
+          deleteTarget
             ? [
-                { label: "Purchase Number", value: cancelTarget.id },
-                { label: "Supplier", value: cancelTarget.supplierName || (Array.isArray(cancelTarget.values) ? cancelTarget.values[0] : "—") },
-                { label: "Order Total", value: Array.isArray(cancelTarget.values) ? cancelTarget.values[2] : "—" },
-                { label: "Current Status", value: cancelTarget.status || "—" },
+                { label: "Purchase Number", value: deleteTarget.id },
+                { label: "Supplier", value: deleteTarget.supplierName || (Array.isArray(deleteTarget.values) ? deleteTarget.values[0] : "—") },
+                { label: "Order Total", value: Array.isArray(deleteTarget.values) ? deleteTarget.values[2] : "—" },
+                { label: "Current Status", value: deleteTarget.status || "—" },
               ]
             : []
         }
-        confirmLabel="Cancel Purchase Order"
-        isLoading={isCancelling}
-        error={cancelError}
-        onConfirm={confirmCancelPurchase}
+        confirmLabel="Delete Purchase Order"
+        isLoading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDeletePurchase}
         onClose={() => {
-          if (!isCancelling) {
-            setCancelTarget(null);
-            setCancelError(null);
+          if (!isDeleting) {
+            setDeleteTarget(null);
+            setDeleteError(null);
           }
         }}
       />

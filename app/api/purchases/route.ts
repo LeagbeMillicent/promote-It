@@ -24,13 +24,14 @@ export async function GET() {
     return NextResponse.json(
       purchases.map((purchase) => {
         const totalUnits = purchase.items.reduce((sum, item) => sum + item.quantity, 0);
+        const supplierName = purchase.supplier?.name || "Direct Supplier";
         return {
           id: purchase.purchaseNumber,
           purchaseId: purchase.id,
           supplierId: purchase.supplierId,
-          supplierName: purchase.supplier.name,
-          supplierPhone: purchase.supplier.phone,
-          supplierEmail: purchase.supplier.email,
+          supplierName,
+          supplierPhone: purchase.supplier?.phone,
+          supplierEmail: purchase.supplier?.email,
           totalAmount: Number(purchase.total),
           createdAt: purchase.createdAt.toISOString(),
           items: purchase.items.map((item) => ({
@@ -43,7 +44,7 @@ export async function GET() {
             total: Number(item.total),
           })),
           values: [
-            purchase.supplier.name,
+            supplierName,
             `${purchase.items.length} ${purchase.items.length === 1 ? "item" : "items"} (${totalUnits} units)`,
             `GHS ${Number(purchase.total).toLocaleString("en-GH", { minimumFractionDigits: 2 })}`,
             purchase.createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),

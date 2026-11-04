@@ -17,7 +17,12 @@ export async function GET() {
       const needsReview = movement.type === "ADJUSTMENT_IN" || movement.type === "ADJUSTMENT_OUT";
       return {
         id: `MOV-${movement.id.replaceAll("-", "").slice(-8).toUpperCase()}`,
-        values: [movement.productVariant.name, `${movementName}${movement.reference ? ` · ${movement.reference}` : ""} · ${signedQuantity} units`, movement.user.name, needsReview ? "Needs review" : "Completed"],
+        values: [
+          movement.productVariant?.name ?? "Detached Product",
+          `${movementName}${movement.reference ? ` · ${movement.reference}` : ""} · ${signedQuantity} units`,
+          movement.user?.name ?? "Former Staff",
+          needsReview ? "Needs review" : "Completed",
+        ],
         status: needsReview ? "Needs review" : "Completed",
         tone: needsReview ? "orange" : "green",
       };

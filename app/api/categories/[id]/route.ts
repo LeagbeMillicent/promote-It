@@ -100,36 +100,36 @@ export async function DELETE(
 
     const category = await db.category.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: { products: true },
-        },
-      },
     });
 
     if (!category) {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    if (category._count.products > 0) {
-      return NextResponse.json(
-        {
-          error: `Cannot delete category "${category.name}" because ${category._count.products} product(s) are assigned to it. Please reassign those products first.`,
-          productsCount: category._count.products,
-        },
-        { status: 400 }
-      );
-    }
+    await db.$transaction(async (tx) => {
+      // Detach any child categories
+      await tx.category.updateMany({
+        where: { parentId: id },
+        data: { parentId: null },
+      });
 
-    await db.category.delete({
-      where: { id },
+      // Detach any products assigned to this category
+      await tx.product.updateMany({
+        where: { categoryId: id },
+        data: { categoryId: null as any },
+      });
+
+      // Hard delete the category
+      await tx.category.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({ ok: true, id, name: category.name });
   } catch (error) {
     return formatErrorResponse(
       error,
-      "This category is referenced by existing catalog items and cannot be deleted."
+      "Category could not be deleted"
     );
   }
 }

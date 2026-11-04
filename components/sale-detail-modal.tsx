@@ -8,6 +8,7 @@ import {
   Package,
   Printer,
   ShoppingBag,
+  Trash2,
   User,
   X,
   XCircle,
@@ -47,11 +48,13 @@ export function SaleDetailModal({
   onClose,
   onPrintReceipt,
   onToggleStatus,
+  onDelete,
 }: {
   sale: SaleDetailData;
   onClose: () => void;
   onPrintReceipt?: (sale: SaleDetailData) => void;
   onToggleStatus?: (sale: SaleDetailData) => void;
+  onDelete?: (sale: SaleDetailData) => void;
 }) {
   const needsFetch = !sale.items || sale.items.length === 0;
   const [fetchedDetails, setFetchedDetails] = useState<SaleDetailData | null>(null);
@@ -303,6 +306,16 @@ export function SaleDetailModal({
             <span>Transaction Reference: <strong>{details.id}</strong></span>
           </div>
           <div className="sale-detail-footer-buttons">
+            {onDelete && (
+              <button
+                type="button"
+                className="danger-button"
+                style={{ marginRight: "auto" }}
+                onClick={() => onDelete(details)}
+              >
+                <Trash2 size={15} /> Delete Sale
+              </button>
+            )}
             <button type="button" className="secondary-button" onClick={onClose}>
               Close
             </button>

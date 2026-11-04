@@ -110,9 +110,31 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       where: { OR: [{ id }, { purchaseNumber: id }] },
     });
     if (!existing) return NextResponse.json({ error: "Purchase not found" }, { status: 404 });
-    await db.purchase.update({ where: { id: existing.id }, data: { status: "CANCELLED" } });
+
+    await db.$transaction(async (tx) => {
+      // Delete associated inventory movements
+      await tx.inventoryMovement.deleteMany({
+        where: {
+          OR: [
+            { reference: existing.purchaseNumber },
+            { reference: existing.id },
+          ],
+        },
+      });
+
+      // Delete purchase items
+      await tx.purchaseItem.deleteMany({
+        where: { purchaseId: existing.id },
+      });
+
+      // Delete purchase
+      await tx.purchase.delete({
+        where: { id: existing.id },
+      });
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return formatErrorResponse(error, "Purchase could not be cancelled");
+    return formatErrorResponse(error, "Purchase could not be deleted");
   }
 }

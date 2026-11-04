@@ -13,9 +13,9 @@ export default function TeamPage() {
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<UserRow | null>(null);
   const [resetRow, setResetRow] = useState<UserRow | null>(null);
-  const [deactivateTarget, setDeactivateTarget] = useState<UserRow | null>(null);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function loadUsers() {
     fetch("/api/users")
@@ -28,31 +28,31 @@ export default function TeamPage() {
     loadUsers();
   }, []);
 
-  function deactivateUser(row: Row) {
-    setDeactivateError(null);
-    setDeactivateTarget(row as UserRow);
+  function deleteUser(row: Row) {
+    setDeleteError(null);
+    setDeleteTarget(row as UserRow);
   }
 
-  async function confirmDeactivateUser() {
-    if (!deactivateTarget) return;
-    setIsDeactivating(true);
-    setDeactivateError(null);
+  async function confirmDeleteUser() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
-      const response = await fetch(`/api/users/${deactivateTarget.userId || deactivateTarget.id}`, {
+      const response = await fetch(`/api/users/${deleteTarget.userId || deleteTarget.id}`, {
         method: "DELETE",
       });
       const data = await response.json();
       if (!response.ok) {
-        setDeactivateError(data.error || "User could not be deactivated");
-        setIsDeactivating(false);
+        setDeleteError(data.error || "User could not be deleted");
+        setIsDeleting(false);
         return;
       }
-      setIsDeactivating(false);
-      setDeactivateTarget(null);
+      setIsDeleting(false);
+      setDeleteTarget(null);
       loadUsers();
     } catch {
-      setDeactivateError("Network error while deactivating user");
-      setIsDeactivating(false);
+      setDeleteError("Network error while deleting user");
+      setIsDeleting(false);
     }
   }
 
@@ -84,7 +84,7 @@ export default function TeamPage() {
         filters={["All status", "Active", "Inactive"]}
         onCreate={openCreate}
         onEdit={openEdit}
-        onDelete={deactivateUser}
+        onDelete={deleteUser}
         onRowAction={(row) => setResetRow(row as UserRow)}
         rowActionLabel="Reset password"
       />
@@ -106,34 +106,34 @@ export default function TeamPage() {
       )}
 
       <ConfirmModal
-        isOpen={!!deactivateTarget}
-        title="Deactivate Staff Member"
+        isOpen={!!deleteTarget}
+        title="Delete Staff Member"
         subtitle="Access & Permissions"
         description={
           <span>
-            Are you sure you want to deactivate account access for{" "}
-            <strong>{deactivateTarget?.values[0] || "this staff member"}</strong>? They will no longer be able to log in.
+            Are you sure you want to permanently delete{" "}
+            <strong>{deleteTarget?.values[0] || "this staff member"}</strong>? Any historical sales, purchases, and audit records associated with this user will be detached. This action cannot be undone.
           </span>
         }
         itemDetails={
-          deactivateTarget
+          deleteTarget
             ? [
-                { label: "Staff Member", value: deactivateTarget.values[0] || "—" },
-                { label: "Email Address", value: deactivateTarget.values[1] || "—" },
-                { label: "Role", value: deactivateTarget.values[2] || "—" },
-                { label: "Current Status", value: deactivateTarget.status || "—" },
+                { label: "Staff Member", value: deleteTarget.values[0] || "—" },
+                { label: "Email Address", value: deleteTarget.values[1] || "—" },
+                { label: "Role", value: deleteTarget.values[2] || "—" },
+                { label: "Current Status", value: deleteTarget.status || "—" },
               ]
             : []
         }
-        confirmLabel="Deactivate Account"
-        variant="warning"
-        isLoading={isDeactivating}
-        error={deactivateError}
-        onConfirm={confirmDeactivateUser}
+        confirmLabel="Delete Member"
+        variant="danger"
+        isLoading={isDeleting}
+        error={deleteError}
+        onConfirm={confirmDeleteUser}
         onClose={() => {
-          if (!isDeactivating) {
-            setDeactivateTarget(null);
-            setDeactivateError(null);
+          if (!isDeleting) {
+            setDeleteTarget(null);
+            setDeleteError(null);
           }
         }}
       />
